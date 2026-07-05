@@ -1,0 +1,36 @@
+============================================================
+DATASET VERIFICATION REPORT
+============================================================
+Total Images           : 83924
+Total Labels           : 41962
+
+Missing Labels         : 0
+Missing Images         : 0
+Empty Labels           : 67
+Corrupted Images       : 0
+Invalid Annotations    : 3
+Invalid Class IDs      : 0
+Duplicate Annotations  : 5
+
+============================================================
+CLASS DISTRIBUTION
+============================================================
+ 0 | animal               : 6106
+ 1 | autorickshaw         : 32086
+ 2 | bicycle              : 3073
+ 3 | bus                  : 18927
+ 4 | car                  : 90829
+ 5 | caravan              : 136
+ 6 | motorcycle           : 101758
+ 7 | person               : 86353
+ 8 | rider                : 95466
+ 9 | traffic light        : 3713
+10 | traffic sign         : 14515
+11 | trailer              : 18
+12 | train                : 59
+13 | truck                : 27765
+14 | vehicle fallback     : 20973
+
+============================================================
+⚠ DATASET HAS 70 ISSUES
+============================================================

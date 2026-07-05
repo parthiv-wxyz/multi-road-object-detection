@@ -1,0 +1,8 @@
+idd
+road_damage
+traffic_sign
+yolov5
+.env
+.venv
+__pycache__
+.pytest_cache

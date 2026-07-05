@@ -1,0 +1,32 @@
+============================================================
+DATASET STATISTICS
+============================================================
+
+Dataset : datasets\idd
+Images : 83924
+Objects : 1003554
+
+Objects Per Class
+------------------------------------------------------------
+ 0 animal               12212
+ 1 autorickshaw         64172
+ 2 bicycle              6146
+ 3 bus                  37854
+ 4 car                  181658
+ 5 caravan              272
+ 6 motorcycle           203516
+ 7 person               172706
+ 8 rider                190932
+ 9 traffic light        7426
+10 traffic sign         29030
+11 trailer              36
+12 train                118
+13 truck                55530
+14 vehicle fallback     41946
+
+Average Objects/Image : 11.96
+
+Bounding Box Size
+Small : 778160
+Medium : 177836
+Large : 47558
