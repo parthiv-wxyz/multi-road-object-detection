@@ -89,43 +89,43 @@ def show_configuration(cfg):
 def build_command(cfg):
 
     cmd = [
-
         sys.executable,
-
         "train.py",
 
         "--img",
-
         str(cfg["training"]["image_size"]),
 
         "--batch",
-
         str(cfg["training"]["batch_size"]),
 
         "--epochs",
-
         str(cfg["training"]["epochs"]),
 
-        "--data",
+        "--workers",
+        str(cfg["training"]["workers"]),
 
+        "--device",
+        str(cfg["training"]["device"]),
+
+        "--data",
         str(ROOT / cfg["dataset"]["yaml"]),
 
         "--cfg",
-
         str(ROOT / cfg["model"]["config"]),
 
         "--weights",
-
         str(ROOT / cfg["model"]["weights"]),
 
-        "--name",
+        "--project",
+        str(ROOT / cfg["project"]["output_dir"]),
 
+        "--name",
         cfg["project"]["experiment"],
 
+        "--exist-ok",
     ]
 
     if cfg["training"]["cache"]:
-
         cmd.append("--cache")
 
     return cmd

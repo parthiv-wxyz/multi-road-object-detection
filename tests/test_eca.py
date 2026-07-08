@@ -5,17 +5,17 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from models.lightweight.lwconv import LWConv
+from models.attention.eca import ECALayer
 
 x = torch.randn(2, 64, 80, 80)
 
-model = LWConv(64)
+eca = ECALayer(64)
 
-y = model(x)
+y = eca(x)
 
 print("Input :", x.shape)
 print("Output:", y.shape)
 
 assert x.shape == y.shape
 
-print("LWConv test passed.")
+print("ECA test passed.")

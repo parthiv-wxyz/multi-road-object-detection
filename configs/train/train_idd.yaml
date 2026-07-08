@@ -4,7 +4,7 @@
 
 project:
   name: "Enhanced-YOLOv5s"
-  experiment: "idd_baseline"
+  experiment: "idd_baseline5"
   output_dir: "runs/train"
 
 dataset:
@@ -16,10 +16,10 @@ model:
 
 training:
   epochs: 5
-  batch_size: 2
+  batch_size: 4
   image_size: 640
-  workers: 2
-  device: "cpu"
+  workers: 4
+  device: "0"
   cache: false
   optimizer: SGD
   seed: 42
@@ -39,8 +39,8 @@ augmentation:
   perspective: 0.0
 
   # Paper augmentation
-  cutmix: false
-  cutmix_prob: 0.5
+  #cutmix: false
+  #cutmix_prob: 0.5
 
 enhancements:
 
