@@ -1,0 +1,14 @@
+steps:
+✓ Baseline pipeline
+✓ CutMix
+✓ Refined Anchors
+✓ ECA
+✓ LWConv
+✓ LW_C3
+✓ P2 Detection Head
+──────────────────────────────
+▶ Replace C3 with LW_C3
+▶ Integrate ECA
+▶ AFP
+▶ Wise-IoU
+▶ Final training

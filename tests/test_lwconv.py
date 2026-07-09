@@ -5,7 +5,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from models.lightweight.lwconv import LWConv
+from yolov5.models.lightweight.lwconv import LWConv
 
 x = torch.randn(2, 64, 80, 80)
 
