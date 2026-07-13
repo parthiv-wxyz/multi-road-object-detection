@@ -6,7 +6,7 @@ import cv2
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from utils.augmentations.cutmix import CutMix
+from project_utils.augmentations.cutmix import CutMix
 
 # Images located in the tests folder
 img1 = cv2.imread(str(Path(__file__).parent / "sample1.jpg"))

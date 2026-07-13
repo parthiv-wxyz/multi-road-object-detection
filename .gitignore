@@ -1,7 +1,6 @@
 idd
 road_damage
 traffic_sign
-yolov5
 .env
 .venv
 __pycache__
@@ -9,3 +8,11 @@ __pycache__
 idd_baseline5
 runs
 models
+
+#yolov5/models
+
+yolov5
+# !yolov5/
+# yolov5/*
+# !yolov5/models/
+# !yolov5/models/**

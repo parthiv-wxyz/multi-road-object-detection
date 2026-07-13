@@ -5,7 +5,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from utils.losses.wise_iou import WiseIoULoss
+from project_utils.losses.wise_iou import WiseIoULoss
 
 loss_fn = WiseIoULoss()
 
