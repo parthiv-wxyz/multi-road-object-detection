@@ -1,0 +1,30 @@
+Case Study 1
+Problem Definition & Dataset Preparation
+(Input: IDD Dataset)
+(Output: Preprocessed Dataset)
+        ↓
+Case Study 2
+Baseline YOLOv5s Model Development
+(Input: Preprocessed Dataset)
+(Output: Baseline Model & Metrics)
+        ↓
+Case Study 3
+Data Augmentation & Anchor Optimization
+(Input: Baseline Dataset)
+(Output: Augmented Dataset & Optimized Anchors)
+        ↓
+Case Study 4
+Enhanced YOLOv5s Architecture
+(LWC3 + ECA + BiFPN + Wise-IoU v3)
+(Input: Baseline Model)
+(Output: Enhanced YOLOv5s Model)
+        ↓
+Case Study 5
+Model Training & Ablation Analysis
+(Input: Enhanced Model + Optimized Dataset)
+(Output: Trained Model & Ablation Results)
+        ↓
+Case Study 6
+Performance Evaluation & Real-Time Road Object Detection
+(Input: Trained Model + Test Data)
+(Output: Final Performance Metrics & Real-Time Detection)
