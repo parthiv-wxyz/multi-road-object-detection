@@ -1,0 +1,40 @@
+Case Study 1
+Project Planning & Problem Definition
+        │
+        ▼
+Case Study 2
+Dataset Preparation & Baseline YOLOv5s Development
+        │
+        ▼
+Case Study 3
+Baseline Model Training & Performance Evaluation
+        │
+        ▼
+Case Study 4
+Backbone Enhancement
+(LWC3 + ECA)
+        │
+        ▼
+Case Study 5
+Neck & Loss Function Enhancement
+(BiFPN + Wise-IoU v3)
+        │
+        ▼
+Case Study 6
+Enhanced Model Integration & Validation
+(Current Stage)
+
+
+| Case Study                                                      | Input                                 | Output                                                              |
+| --------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| **Case Study 1: Project Planning & Problem Definition**         | Research Problem, Literature Review   | Problem Statement, Research Objectives, Development Plan            |
+
+| **Case Study 2: Dataset Preparation & Baseline Development**    | IDD, RDD2022, Traffic Sign Datasets   | Baseline YOLOv5s Setup                       |
+
+| **Case Study 3: Baseline Training & Evaluation**                | Combined Dataset, Baseline YOLOv5s    | Baseline Model (`best.pt`), Performance Metrics                     |
+
+| **Case Study 4: Backbone Enhancement (LWC3 + ECA)**             | Baseline YOLOv5s, LWC3, ECA           | Enhanced Backbone                                                   |
+
+| **Case Study 5: Neck & Loss Enhancement (BiFPN + Wise-IoU v3)** | Enhanced Backbone, BiFPN, Wise-IoU v3 | Enhanced YOLOv5s Architecture                                       |
+
+| **Case Study 6: Enhanced Model Integration & Validation**       | Enhanced YOLOv5s Architecture         | Integrated Model, Validation Results, Training-Ready Enhanced Model |
