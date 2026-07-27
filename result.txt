@@ -12,6 +12,3 @@ steps:
 ▶ AFP
 ▶ Wise-IoU
 ▶ Final training
-
-
-hi
