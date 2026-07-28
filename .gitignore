@@ -11,6 +11,6 @@ models
 
 #yolov5/models
 
-yolov5/*
-!yolov5/models/
-!yolov5/models/**
+# yolov5/*
+# !yolov5/models/
+# !yolov5/models/**

@@ -3,9 +3,10 @@ import sys
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "yolov5"))
 
-from yolov5.models.lightweight.lwc3 import LWC3
+from models.lightweight.lwc3 import LWC3
+
 
 x = torch.randn(1, 64, 80, 80)
 
