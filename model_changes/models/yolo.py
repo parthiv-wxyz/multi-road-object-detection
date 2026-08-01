@@ -53,6 +53,7 @@ from models.common import (
 from models.lightweight.lwc3 import LWC3
 from models.attention.eca import ECALayer
 from models.attention.eca_block import ConvECA
+# from models.fusion.afp import AFP
 
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
@@ -411,6 +412,7 @@ def parse_model(d, ch):
         n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in {
             Conv,
+            ConvECA,
             GhostConv,
             Bottleneck,
             GhostBottleneck,
@@ -435,14 +437,25 @@ def parse_model(d, ch):
                 c2 = make_divisible(c2 * gw, ch_mul)
 
             args = [c1, c2, *args[1:]]
-            if m in {BottleneckCSP, C3, C3TR, C3Ghost, C3x}:
+            if m in {BottleneckCSP, C3, C3TR, C3Ghost, C3x, LWC3}:
                 args.insert(2, n)  # number of repeats
                 n = 1
         elif m is nn.BatchNorm2d:
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        # TODO: channel, gw, gd
+        # elif m is AFP:
+        #     c2 = ch[f[0]]
+        #     args = [c2]
+        elif m is ECALayer:
+            c2 = ch[f]
+            args = [c2, *args]
+        elif m is Proto:
+            c1, c2 = ch[f], args[1]
+            args = [c1, make_divisible(args[0] * gw, ch_mul), c2]
+        elif m is Classify:
+            c2 = args[0]
+            args = [ch[f], c2, *args[1:]]
         elif m in {Detect, Segment}:
             args.append([ch[x] for x in f])
             if isinstance(args[1], int):  # number of anchors
