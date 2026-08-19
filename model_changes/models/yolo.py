@@ -58,7 +58,11 @@ from models.attention.eca_block import ConvECA
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
 from utils.general import LOGGER, check_version, check_yaml, colorstr, make_divisible, print_args
-from utils.plots import feature_visualization
+try:
+    from utils.plots import feature_visualization
+except ImportError:
+    def feature_visualization(*args, **kwargs):
+        pass
 from utils.torch_utils import (
     fuse_conv_and_bn,
     initialize_weights,

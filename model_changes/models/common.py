@@ -37,7 +37,8 @@ except (ImportError, AssertionError):
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 
 from utils import TryExcept
-from utils.dataloaders import exif_transpose, letterbox
+from utils.dataloaders import letterbox
+from PIL import ImageOps
 from utils.general import (
     LOGGER,
     ROOT,
@@ -915,9 +916,9 @@ class AutoShape(nn.Module):
                 f = f"image{i}"  # filename
                 if isinstance(im, (str, Path)):  # filename or uri
                     im, f = Image.open(_request_ssrf_url(str(im)).raw if str(im).startswith("http") else im), im
-                    im = np.asarray(exif_transpose(im))
+                    im = np.asarray(ImageOps.exif_transpose(im))
                 elif isinstance(im, Image.Image):  # PIL Image
-                    im, f = np.asarray(exif_transpose(im)), getattr(im, "filename", f) or f
+                    im, f = np.asarray(ImageOps.exif_transpose(im)), getattr(im, "filename", f) or f
                 files.append(Path(f).with_suffix(".jpg").name)
                 if im.shape[0] < 5:  # image in CHW
                     im = im.transpose((1, 2, 0))  # reverse dataloader .transpose(2, 0, 1)
