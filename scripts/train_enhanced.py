@@ -10,6 +10,8 @@ python scripts/train_enhanced.py
 from pathlib import Path
 import subprocess
 import sys
+import torch
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,7 +25,7 @@ PROJECT = ROOT / "runs"
 
 NAME = "enhanced"
 
-WEIGHTS = "yolov5s.pt"
+WEIGHTS = YOLO / "yolov5s.pt"
 
 IMG = 640
 
@@ -32,6 +34,31 @@ BATCH = 16
 EPOCHS = 100
 
 DEVICE = "0"
+
+
+# ============================================================
+# GPU CHECK
+# ============================================================
+
+print("=" * 60)
+print("GPU CHECK")
+print("=" * 60)
+
+print(f"Python: {sys.executable}")
+print(f"PyTorch: {torch.__version__}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+
+if not torch.cuda.is_available():
+    raise RuntimeError(
+        "CUDA is not available. Install CUDA-enabled PyTorch before training."
+    )
+
+print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+
+# ============================================================
+# TRAINING COMMAND
+# ============================================================
 
 cmd = [
     sys.executable,
@@ -47,7 +74,7 @@ cmd = [
 
     "--cfg", str(CFG),
 
-    "--weights", WEIGHTS,
+    "--weights", str(WEIGHTS),
 
     "--project", str(PROJECT),
 
@@ -55,15 +82,19 @@ cmd = [
 
     "--device", DEVICE,
 
-    "--workers", "8",
+    "--workers", "0",
 
-    "--cache"
 ]
+
+
+# ============================================================
+# START TRAINING
+# ============================================================
 
 print("=" * 60)
 print("TRAINING ENHANCED YOLOv5")
 print("=" * 60)
 
-print(" ".join(cmd))
+print(" ".join(map(str, cmd)))
 
-subprocess.run(cmd)
+subprocess.run(cmd, check=True)

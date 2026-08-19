@@ -1,24 +1,38 @@
-numpy
-opencv-python
-opencv-contrib-python
-matplotlib
-pandas
-scipy
-PyYAML
-seaborn
-tqdm
-Pillow
-tensorboard
-psutil
-requests
-pycocotools
-albumentations
-thop
-onnx
-onnxruntime-gpu
-onnxsim
-ipython
-notebook
-jupyter
-scikit-learn
-rich
+# ============================================================
+# Enhanced YOLOv5 - Multi-Road-Object Detection
+# ============================================================
+
+# Core Scientific Computing
+numpy>=1.23,<2.0
+scipy>=1.10
+pandas>=1.5
+
+# Computer Vision
+opencv-python>=4.8
+Pillow>=9.5
+
+# Configuration and Utilities
+PyYAML>=6.0
+requests>=2.31
+tqdm>=4.65
+psutil>=5.9
+GitPython>=3.1
+
+# Visualization
+matplotlib>=3.7
+seaborn>=0.12
+
+# Machine Learning / Evaluation
+scikit-learn>=1.3
+
+# YOLOv5 Model Profiling
+thop>=0.1.1
+
+# Dataset Annotation Support
+pycocotools>=2.0.7
+
+# Training Monitoring
+tensorboard>=2.14
+
+# Compatibility
+protobuf>=4.23,<6
