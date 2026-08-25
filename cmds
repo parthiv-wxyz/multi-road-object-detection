@@ -9,6 +9,9 @@ source .venv/bin/activate
 deactivate
 
 
-                continue final training
+                        continue final training
 
 python train.py --resume E:\Parthiv\multi-road-object-detection\runs\enhanced4\weights\last.pt
+
+                        backend start:
+uvicorn app:app --reload
