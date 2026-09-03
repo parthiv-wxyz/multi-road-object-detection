@@ -1,54 +1,35 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import "./App.css";
-
-const featureCards = [
-  {
-    eyebrow: "Fast upload",
-    title: "Drop a road scene and start instantly",
-    description:
-      "Choose a frame from CCTV, dashcam, or field capture and send it to the detector in one click.",
-  },
-  {
-    eyebrow: "Clear output",
-    title: "Review original and annotated frames side by side",
-    description:
-      "Compare raw input with the processed result without losing the visual context of the scene.",
-  },
-  {
-    eyebrow: "Built for testing",
-    title: "A focused interface for model validation",
-    description:
-      "Designed for quick iteration while you verify road object predictions from your YOLO backend.",
-  },
-];
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
   const [resultImage, setResultImage] = useState(null);
+
+  const [detections, setDetections] = useState([]);
+  const [totalObjects, setTotalObjects] = useState(0);
+  const [inferenceTime, setInferenceTime] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    return () => {
-      if (originalImage) URL.revokeObjectURL(originalImage);
-      if (resultImage) URL.revokeObjectURL(resultImage);
-    };
-  }, [originalImage, resultImage]);
-
   const handleFileChange = (event) => {
     const file = event.target.files[0];
-    if (!file) return;
 
-    if (originalImage) URL.revokeObjectURL(originalImage);
-    if (resultImage) URL.revokeObjectURL(resultImage);
+    if (!file) return;
 
     setSelectedFile(file);
     setOriginalImage(URL.createObjectURL(file));
+
+    // Reset previous results
     setResultImage(null);
+    setDetections([]);
+    setTotalObjects(0);
+    setInferenceTime(null);
     setError("");
   };
+
 
   const runDetection = async () => {
     if (!selectedFile) {
@@ -59,167 +40,272 @@ function App() {
     setLoading(true);
     setError("");
 
-    if (resultImage) {
-      URL.revokeObjectURL(resultImage);
-      setResultImage(null);
-    }
-
     const formData = new FormData();
-    formData.append("file", selectedFile);
+
+    formData.append(
+      "file",
+      selectedFile
+    );
 
     try {
       const response = await axios.post(
         "http://127.0.0.1:8000/detect",
-        formData,
-        { responseType: "blob" }
+        formData
       );
 
-      setResultImage(URL.createObjectURL(response.data));
+      const data = response.data;
+
+      setResultImage(
+        `data:image/jpeg;base64,${data.image}`
+      );
+
+      setDetections(data.detections);
+      setTotalObjects(data.total_objects);
+      setInferenceTime(data.inference_time_ms);
+
     } catch (err) {
       console.error(err);
-      setError("Detection failed. Make sure the backend is running.");
-    } finally {
-      setLoading(false);
+
+      setError(
+        "Detection failed. Make sure the backend is running."
+      );
     }
+
+    setLoading(false);
   };
 
+
   return (
-    <div className="app-shell">
-      <main className="app">
-        <section className="hero">
-          <div className="hero-copy">
-            <span className="eyebrow">Computer Vision Dashboard</span>
-            <h1>Modern road object detection UI for your YOLO workflow.</h1>
-            <p className="hero-text">
-              Upload an image, run inference, and inspect the annotated output in
-              a cleaner testing environment built for fast model evaluation.
-            </p>
+    <div className="app">
 
-            <div className="hero-actions">
-              <label className="primary-upload">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-                <span>{selectedFile ? "Replace image" : "Choose image"}</span>
-              </label>
+      <header>
+        <div>
+          <h1>Road Object Detection System</h1>
 
-              <button
-                className="detect-button"
-                onClick={runDetection}
-                disabled={!selectedFile || loading}
-              >
-                {loading ? "Running detection..." : "Run detection"}
-              </button>
-            </div>
+          <p>
+            YOLOv5 Model Testing Dashboard
+          </p>
+        </div>
 
-            <div className="status-strip">
-              <div className="status-card">
-                <span className="status-label">Selected file</span>
-                <strong>{selectedFile ? selectedFile.name : "No file yet"}</strong>
-              </div>
-              <div className="status-card">
-                <span className="status-label">Pipeline status</span>
-                <strong>{loading ? "Processing image" : "Ready for inference"}</strong>
-              </div>
-            </div>
+        <div className="status">
+          ● System Ready
+        </div>
+      </header>
 
-            {error && <p className="error-banner">{error}</p>}
+
+      <main>
+
+        {/* Upload Section */}
+
+        <section className="control-panel">
+
+          <div className="upload-box">
+
+            <label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+
+              <span className="upload-icon">
+                📁
+              </span>
+
+              <span>
+                Upload Road Image
+              </span>
+
+              <small>
+                JPG, JPEG, PNG
+              </small>
+
+            </label>
+
           </div>
 
-          <div className="hero-panel">
-            <div className="panel-badge">YOLOv5 testing</div>
-            <h2>Model run overview</h2>
-            <p>
-              Keep the interaction simple while presenting the workflow in a more
-              polished, dashboard-like layout.
-            </p>
 
-            <div className="metric-grid">
-              <div className="metric-card">
-                <span>Input</span>
-                <strong>Road image</strong>
-              </div>
-              <div className="metric-card">
-                <span>Output</span>
-                <strong>Annotated frame</strong>
-              </div>
-              <div className="metric-card">
-                <span>Endpoint</span>
-                <strong>`/detect`</strong>
-              </div>
-              <div className="metric-card">
-                <span>Mode</span>
-                <strong>Single image</strong>
-              </div>
-            </div>
-          </div>
+          <button
+            className="detect-button"
+            onClick={runDetection}
+            disabled={!selectedFile || loading}
+          >
+
+            {loading
+              ? "Running Detection..."
+              : "Run Detection"
+            }
+
+          </button>
+
         </section>
 
-        <section className="feature-grid">
-          {featureCards.map((card) => (
-            <article className="feature-card" key={card.title}>
-              <span className="feature-eyebrow">{card.eyebrow}</span>
-              <h3>{card.title}</h3>
-              <p>{card.description}</p>
-            </article>
-          ))}
-        </section>
 
-        <section className="results-section">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Visual comparison</span>
-              <h2>Before and after detection</h2>
-            </div>
-            <p>
-              Review your uploaded frame alongside the processed output without
-              leaving the page.
-            </p>
+        {error && (
+          <p className="error">
+            {error}
+          </p>
+        )}
+
+
+        {/* Statistics */}
+
+        <section className="statistics">
+
+          <div className="stat-card">
+
+            <span>Total Objects</span>
+
+            <strong>
+              {totalObjects}
+            </strong>
+
           </div>
 
-          <div className="results-grid">
-            <article className="image-card">
-              <div className="card-header">
-                <div>
-                  <span className="card-label">Source</span>
-                  <h3>Original image</h3>
-                </div>
-              </div>
 
-              {originalImage ? (
-                <img src={originalImage} alt="Original upload preview" />
-              ) : (
-                <div className="placeholder">
-                  <p>Upload an image to preview the source frame here.</p>
-                </div>
-              )}
-            </article>
+          <div className="stat-card">
 
-            <article className="image-card">
-              <div className="card-header">
-                <div>
-                  <span className="card-label">Result</span>
-                  <h3>Detection output</h3>
-                </div>
-              </div>
+            <span>Inference Time</span>
 
-              {resultImage ? (
-                <img src={resultImage} alt="Detection result preview" />
-              ) : (
-                <div className="placeholder">
-                  <p>
-                    {loading
-                      ? "Inference is running. Your annotated image will appear here."
-                      : "Run detection to view the annotated output."}
-                  </p>
-                </div>
-              )}
-            </article>
+            <strong>
+              {inferenceTime
+                ? `${inferenceTime} ms`
+                : "--"
+              }
+            </strong>
+
           </div>
+
+
+          <div className="stat-card">
+
+            <span>Detection Status</span>
+
+            <strong>
+              {resultImage
+                ? "Completed"
+                : "Waiting"
+              }
+            </strong>
+
+          </div>
+
         </section>
+
+
+        {/* Images */}
+
+        <section className="results">
+
+          <div className="image-card">
+
+            <h2>Original Image</h2>
+
+            {originalImage ? (
+
+              <img
+                src={originalImage}
+                alt="Original"
+              />
+
+            ) : (
+
+              <div className="placeholder">
+                Upload an image to begin
+              </div>
+
+            )}
+
+          </div>
+
+
+          <div className="image-card">
+
+            <h2>Detection Result</h2>
+
+            {resultImage ? (
+
+              <img
+                src={resultImage}
+                alt="Detection Result"
+              />
+
+            ) : (
+
+              <div className="placeholder">
+
+                {loading
+                  ? "YOLOv5 is analyzing the image..."
+                  : "Detection result will appear here"
+                }
+
+              </div>
+
+            )}
+
+          </div>
+
+        </section>
+
+
+        {/* Detection Table */}
+
+        {detections.length > 0 && (
+
+          <section className="detection-panel">
+
+            <h2>
+              Detected Objects
+            </h2>
+
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>#</th>
+                  <th>Object Class</th>
+                  <th>Confidence</th>
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {detections.map(
+                  (detection, index) => (
+
+                    <tr key={index}>
+
+                      <td>
+                        {index + 1}
+                      </td>
+
+                      <td>
+                        {detection.class}
+                      </td>
+
+                      <td>
+                        {detection.confidence}%
+                      </td>
+
+                    </tr>
+
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+          </section>
+
+        )}
+
       </main>
+
     </div>
   );
 }
