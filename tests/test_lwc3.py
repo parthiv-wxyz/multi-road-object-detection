@@ -10,7 +10,7 @@ from models.lightweight.lwc3 import LWC3
 
 x = torch.randn(1, 64, 80, 80)
 
-model = LWC3(64, n=3)
+model = LWC3(64, 64, n=3)
 
 y = model(x)
 
