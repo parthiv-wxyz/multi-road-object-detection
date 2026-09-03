@@ -38,7 +38,6 @@ from ultralytics.utils.plotting import Annotator, colors, save_one_box
 
 from utils import TryExcept
 from utils.dataloaders import letterbox
-from PIL import ImageOps
 from utils.general import (
     LOGGER,
     ROOT,
@@ -90,6 +89,65 @@ class Conv(nn.Module):
     def forward_fuse(self, x):
         """Applies a fused convolution and activation function to the input tensor `x`."""
         return self.act(self.conv(x))
+
+class DirectionalConv(nn.Module):
+    """
+    Direction-aware convolution for elongated road-damage patterns.
+
+    Uses horizontal (1×3), vertical (3×1), and standard (3×3)
+    convolutions, followed by feature fusion.
+    """
+
+    def __init__(self, c1, c2, k=3, s=1):
+        super().__init__()
+
+        # Horizontal feature extraction
+        self.horizontal = Conv(
+            c1,
+            c2,
+            k=(1, 3),
+            s=s,
+            p=(0, 1)
+        )
+
+        # Vertical feature extraction
+        self.vertical = Conv(
+            c1,
+            c2,
+            k=(3, 1),
+            s=s,
+            p=(1, 0)
+        )
+
+        # Standard spatial feature extraction
+        self.standard = Conv(
+            c1,
+            c2,
+            k=3,
+            s=s,
+            p=1
+        )
+
+        # Fuse the three feature branches
+        self.fuse = Conv(
+            c2 * 3,
+            c2,
+            k=1,
+            s=1
+        )
+
+    def forward(self, x):
+        horizontal = self.horizontal(x)
+        vertical = self.vertical(x)
+        standard = self.standard(x)
+
+        # Combine directional features
+        x = torch.cat(
+            [horizontal, vertical, standard],
+            dim=1
+        )
+
+        return self.fuse(x)
 
 
 class DWConv(Conv):
@@ -596,20 +654,13 @@ class DetectMultiBackend(nn.Module):
         elif pb:  # GraphDef https://www.tensorflow.org/guide/migrate#a_graphpb_or_graphpbtxt
             LOGGER.info(f"Loading {w} for TensorFlow GraphDef inference...")
             import tensorflow as tf
+            from ultralytics.utils.export.tensorflow import gd_outputs
 
             def wrap_frozen_graph(gd, inputs, outputs):
                 """Wraps a TensorFlow GraphDef for inference, returning a pruned function."""
                 x = tf.compat.v1.wrap_function(lambda: tf.compat.v1.import_graph_def(gd, name=""), [])  # wrapped
                 ge = x.graph.as_graph_element
                 return x.prune(tf.nest.map_structure(ge, inputs), tf.nest.map_structure(ge, outputs))
-
-            def gd_outputs(gd):
-                """Generates a sorted list of graph outputs excluding NoOp nodes and inputs, formatted as '<name>:0'."""
-                name_list, input_list = [], []
-                for node in gd.node:  # tensorflow.core.framework.node_def_pb2.NodeDef
-                    name_list.append(node.name)
-                    input_list.extend(node.input)
-                return sorted(f"{x}:0" for x in list(set(name_list) - set(input_list)) if not x.startswith("NoOp"))
 
             gd = tf.Graph().as_graph_def()  # TF GraphDef
             with open(w, "rb") as f:
@@ -690,8 +741,8 @@ class DetectMultiBackend(nn.Module):
 
         self.__dict__.update(locals())  # assign all variables to self
 
-    def forward(self, im, augment=False, visualize=False):
-        """Performs YOLOv5 inference on input images with options for augmentation and visualization."""
+    def forward(self, im, augment=False):
+        """Performs YOLOv5 inference on input images with optional augmentation."""
         _b, _ch, h, w = im.shape  # batch, channel, height, width
         if self.fp16 and im.dtype != torch.float16:
             im = im.half()  # to FP16
@@ -699,7 +750,7 @@ class DetectMultiBackend(nn.Module):
             im = im.permute(0, 2, 3, 1)  # torch BCHW to numpy BHWC shape(1,320,192,3)
 
         if self.pt:  # PyTorch
-            y = self.model(im, augment=augment, visualize=visualize) if augment or visualize else self.model(im)
+            y = self.model(im, augment=augment) if augment else self.model(im)
         elif self.jit:  # TorchScript
             y = self.model(im)
         elif self.dnn:  # ONNX OpenCV DNN
@@ -916,9 +967,9 @@ class AutoShape(nn.Module):
                 f = f"image{i}"  # filename
                 if isinstance(im, (str, Path)):  # filename or uri
                     im, f = Image.open(_request_ssrf_url(str(im)).raw if str(im).startswith("http") else im), im
-                    im = np.asarray(ImageOps.exif_transpose(im))
+                    im = np.asarray(exif_transpose(im))
                 elif isinstance(im, Image.Image):  # PIL Image
-                    im, f = np.asarray(ImageOps.exif_transpose(im)), getattr(im, "filename", f) or f
+                    im, f = np.asarray(exif_transpose(im)), getattr(im, "filename", f) or f
                 files.append(Path(f).with_suffix(".jpg").name)
                 if im.shape[0] < 5:  # image in CHW
                     im = im.transpose((1, 2, 0))  # reverse dataloader .transpose(2, 0, 1)

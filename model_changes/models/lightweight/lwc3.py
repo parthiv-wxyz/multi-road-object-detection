@@ -5,9 +5,6 @@ from models.common import Conv
 from models.lightweight.lwconv import LWConv
 
 class LWBottleneck(nn.Module):
-    """
-    Lightweight Bottleneck using LWConv
-    """
 
     def __init__(self, c, shortcut=True):
         super().__init__()
@@ -22,9 +19,6 @@ class LWBottleneck(nn.Module):
 
 
 class LWC3(nn.Module):
-    """
-    YOLOv5-compatible Lightweight C3
-    """
 
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__()

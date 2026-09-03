@@ -39,6 +39,7 @@ from models.common import (
     Concat,
     Contract,
     Conv,
+    DirectionalConv,
     CrossConv,
     DetectMultiBackend,
     DWConv,
@@ -58,11 +59,6 @@ from models.attention.eca_block import ConvECA
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
 from utils.general import LOGGER, check_version, check_yaml, colorstr, make_divisible, print_args
-try:
-    from utils.plots import feature_visualization
-except ImportError:
-    def feature_visualization(*args, **kwargs):
-        pass
 from utils.torch_utils import (
     fuse_conv_and_bn,
     initialize_weights,
@@ -164,14 +160,12 @@ class Segment(Detect):
 class BaseModel(nn.Module):
     """YOLOv5 base model."""
 
-    def forward(self, x, profile=False, visualize=False):
-        """Executes a single-scale inference or training pass on the YOLOv5 base model, with options for profiling and
-        visualization.
-        """
-        return self._forward_once(x, profile, visualize)  # single-scale inference, train
+    def forward(self, x, profile=False):
+        """Executes a single-scale inference or training pass on the YOLOv5 base model."""
+        return self._forward_once(x, profile)  # single-scale inference, train
 
-    def _forward_once(self, x, profile=False, visualize=False):
-        """Performs a forward pass on the YOLOv5 model, enabling profiling and feature visualization options."""
+    def _forward_once(self, x, profile=False):
+        """Performs a forward pass on the YOLOv5 model, enabling profiling when requested."""
         y, dt = [], []  # outputs
         for m in self.model:
             if m.f != -1:  # if not from previous layer
@@ -180,8 +174,6 @@ class BaseModel(nn.Module):
                 self._profile_one_layer(m, x, dt)
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
-            if visualize:
-                feature_visualization(x, m.type, m.i, save_dir=visualize)
         return x
 
     def _profile_one_layer(self, m, x, dt):
@@ -211,7 +203,7 @@ class BaseModel(nn.Module):
 
     def info(self, verbose=False, img_size=640):
         """Prints model information given verbosity and image size, e.g., `info(verbose=True, img_size=640)`."""
-        model_info(self, verbose, img_size)
+        model_info(self, detailed=verbose, imgsz=img_size)
 
     def _apply(self, fn):
         """Applies transformations like to(), cpu(), cuda(), half() to model tensors excluding parameters or registered
@@ -275,11 +267,11 @@ class DetectionModel(BaseModel):
         self.info()
         LOGGER.info("")
 
-    def forward(self, x, augment=False, profile=False, visualize=False):
-        """Performs single-scale or augmented inference and may include profiling or visualization."""
+    def forward(self, x, augment=False, profile=False):
+        """Performs single-scale or augmented inference and may include profiling."""
         if augment:
             return self._forward_augment(x)  # augmented inference, None
-        return self._forward_once(x, profile, visualize)  # single-scale inference, train
+        return self._forward_once(x, profile)  # single-scale inference, train
 
     def _forward_augment(self, x):
         """Performs augmented inference across different scales and flips, returning combined detections."""
@@ -417,6 +409,7 @@ def parse_model(d, ch):
         if m in {
             Conv,
             ConvECA,
+            DirectionalConv,
             GhostConv,
             Bottleneck,
             GhostBottleneck,
@@ -515,7 +508,7 @@ if __name__ == "__main__":
             try:
                 _ = Model(cfg)
             except Exception as e:
-                print(f"Error in {cfg}: {e}")
+                LOGGER.error(f"in {cfg}: {e}")
 
     else:  # report fused model summary
         model.fuse()
