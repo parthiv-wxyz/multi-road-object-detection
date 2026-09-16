@@ -2,7 +2,7 @@ from pathlib import Path
 from collections import Counter
 
 ROOT = Path(__file__).resolve().parent.parent
-DATASET = ROOT / "datasets" / "road_damage"
+DATASET = ROOT / "datasets" / "road_damage_v2"
 
 SPLITS = ["train", "val", "test"]
 
