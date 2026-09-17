@@ -1,5 +1,5 @@
-weights: yolov5\yolov5s.pt
-cfg: yolov5\models\enhanced_rdd4d.yaml
+weights: yolov5\runs\train\rdd4d_enhanced_final\weights\last.pt
+cfg: ''
 data: yolov5\data\road_damage.yaml
 hyp:
   lr0: 0.01
@@ -34,7 +34,7 @@ epochs: 100
 batch_size: 2
 imgsz: 640
 rect: false
-resume: false
+resume: true
 nosave: false
 noval: false
 noautoanchor: false

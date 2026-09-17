@@ -66,4 +66,4 @@ local_rank: -1
 entity: null
 upload_dataset: false
 bbox_interval: -1
-save_dir: yolov5\runs\train\rdd4d_baseline_clean
+save_dir: yolov5\runs\train\rdd4d_baseline_clean3

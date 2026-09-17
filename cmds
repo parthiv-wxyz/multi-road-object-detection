@@ -11,7 +11,8 @@ deactivate
 
                         continue final training
 
-python train.py --resume E:\Parthiv\multi-road-object-detection\runs\enhanced4\weights\last.pt
+python yolov5\train.py --resume runs\train\rdd4d_main\weights\last.pt
 
                         backend start:
 uvicorn app:app --reload
+python yolov5\train.py --resume yolov5\runs\train\enhanced_rdd2022_final\weights\last.pt --workers 0

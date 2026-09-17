@@ -35,16 +35,23 @@ PROJECT_DIR = BACKEND_DIR.parent
 
 YOLO_DIR = PROJECT_DIR / "yolov5"
 
+# MODEL_PATH = (
+#     YOLO_DIR
+#     / "runs"
+#     / "train"
+#     / "idd_final"
+#     / "weights"
+#     / "best.pt"
+# )
 
 MODEL_PATH = (
     YOLO_DIR
     / "runs"
     / "train"
-    / "idd_final"
+    / "rdd4d_enhanced_final"
     / "weights"
     / "best.pt"
 )
-
 
 print("=" * 60)
 print("YOLO DIRECTORY:")
