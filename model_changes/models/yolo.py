@@ -54,7 +54,7 @@ from models.common import (
 from models.lightweight.lwc3 import LWC3
 from models.attention.eca import ECALayer
 from models.attention.eca_block import ConvECA
-# from models.fusion.afp import AFP
+from models.fusion.afp import AFP
 
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
@@ -441,9 +441,10 @@ def parse_model(d, ch):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        # elif m is AFP:
-        #     c2 = ch[f[0]]
-        #     args = [c2]
+        elif m is AFP:
+            c1 = ch[f[0]]
+            c2 = c1
+            args = [c1, c2]
         elif m is ECALayer:
             c2 = ch[f]
             args = [c2, *args]

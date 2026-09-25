@@ -1,4 +1,4 @@
-path: E:\Parthiv\multi-road-object-detection\datasets\road_damage\
+path: C:/Users/ppart/Desktop/YOLO/datasets/road_damage
 
 train: images/train
 val: images/val

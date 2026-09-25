@@ -22,7 +22,6 @@ import requests
 import torch
 import torch.nn as nn
 from PIL import Image
-from PIL.ImageOps import exif_transpose
 
 # Import 'ultralytics' package or install if missing
 try:

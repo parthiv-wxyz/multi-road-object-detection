@@ -3,16 +3,27 @@ generate_anchors.py
 
 Generate optimized YOLO anchors using K-Means clustering.
 
-Usage:
-python scripts/generate_anchors.py --dataset datasets/idd --img-size 640 --anchors 9
+Designed for:
+datasets/<dataset>/
+    images/
+        train/
+        val/
+        test/
+    labels/
+        train/
+        val/
+        test/
+
+Example:
+python scripts/generate_anchors.py --dataset ../datasets/traffic_sign --img-size 640 --anchors 12
 """
 
 import argparse
 from pathlib import Path
 
 import numpy as np
-import yaml
 from sklearn.cluster import KMeans
+
 
 # -------------------------------------------------------
 # Arguments
@@ -22,7 +33,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument(
     "--dataset",
-    default="datasets/idd",
+    default="../datasets/traffic_sign",
     type=str,
     help="Dataset folder",
 )
@@ -36,7 +47,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--anchors",
-    default=9,
+    default=12,
     type=int,
     help="Number of anchors",
 )
@@ -47,53 +58,81 @@ DATASET = Path(args.dataset)
 IMG_SIZE = args.img_size
 NUM_ANCHORS = args.anchors
 
-# -------------------------------------------------------
-# Load dataset
-# -------------------------------------------------------
-
-yaml_file = DATASET / "data.yaml"
-
-with open(yaml_file, "r") as f:
-    cfg = yaml.safe_load(f)
 
 # -------------------------------------------------------
-# Read all bounding boxes
+# Check dataset
+# -------------------------------------------------------
+
+label_dir = DATASET / "labels" / "train"
+
+if not label_dir.exists():
+    raise FileNotFoundError(
+        f"Training label directory not found:\n{label_dir.resolve()}"
+    )
+
+print("\n========================================")
+print("Traffic Sign Anchor Generation")
+print("========================================")
+
+print(f"Dataset : {DATASET.resolve()}")
+print(f"Labels  : {label_dir.resolve()}")
+print(f"Image size : {IMG_SIZE}")
+print(f"Anchors : {NUM_ANCHORS}")
+
+
+# -------------------------------------------------------
+# Read TRAINING bounding boxes only
 # -------------------------------------------------------
 
 boxes = []
 
-for split in ["train", "val", "test"]:
+label_files = list(label_dir.glob("*.txt"))
 
-    label_dir = DATASET / split / "labels"
+print(f"\nTraining label files found: {len(label_files)}")
 
-    if not label_dir.exists():
-        continue
+for label_file in label_files:
 
-    for label_file in label_dir.glob("*.txt"):
+    with open(label_file, "r") as f:
 
-        with open(label_file) as f:
+        for line in f:
 
-            for line in f:
+            line = line.strip()
 
-                line = line.strip()
+            if not line:
+                continue
 
-                if not line:
-                    continue
+            values = line.split()
 
-                cls, x, y, w, h = map(float, line.split())
+            if len(values) != 5:
+                continue
 
-                boxes.append([
-                    w * IMG_SIZE,
-                    h * IMG_SIZE,
-                ])
+            cls, x, y, w, h = map(float, values)
 
-boxes = np.array(boxes)
+            # YOLO normalized width/height → pixels
+            box_w = w * IMG_SIZE
+            box_h = h * IMG_SIZE
 
-print(f"\nLoaded {len(boxes)} bounding boxes")
+            if box_w > 0 and box_h > 0:
+                boxes.append([box_w, box_h])
+
+
+boxes = np.array(boxes, dtype=np.float32)
+
+if len(boxes) < NUM_ANCHORS:
+    raise ValueError(
+        f"Only {len(boxes)} bounding boxes found. "
+        f"Cannot generate {NUM_ANCHORS} anchors."
+    )
+
+
+print(f"Training bounding boxes: {len(boxes)}")
+
 
 # -------------------------------------------------------
 # KMeans
 # -------------------------------------------------------
+
+print("\nRunning K-Means...")
 
 kmeans = KMeans(
     n_clusters=NUM_ANCHORS,
@@ -105,8 +144,9 @@ kmeans.fit(boxes)
 
 anchors = kmeans.cluster_centers_
 
+
 # -------------------------------------------------------
-# Sort by area
+# Sort anchors by area
 # -------------------------------------------------------
 
 areas = anchors[:, 0] * anchors[:, 1]
@@ -115,11 +155,14 @@ order = np.argsort(areas)
 
 anchors = anchors[order]
 
+
 # -------------------------------------------------------
-# Print
+# Print anchors
 # -------------------------------------------------------
 
-print("\nGenerated Anchors\n")
+print("\n========================================")
+print("Generated Traffic-Sign Anchors")
+print("========================================\n")
 
 anchor_list = []
 
@@ -130,7 +173,13 @@ for i, (w, h) in enumerate(anchors, start=1):
 
     anchor_list.append((w, h))
 
-    print(f"{i:2d}. ({w:3d}, {h:3d})")
+    area = w * h
+
+    print(
+        f"{i:2d}. ({w:4d}, {h:4d})"
+        f"   area = {area:7d}"
+    )
+
 
 # -------------------------------------------------------
 # Save
@@ -139,21 +188,43 @@ for i, (w, h) in enumerate(anchors, start=1):
 output_dir = Path("results/anchors")
 output_dir.mkdir(parents=True, exist_ok=True)
 
-output_file = output_dir / f"{DATASET.name}_anchors.txt"
+output_file = output_dir / f"{DATASET.name}_anchors_{NUM_ANCHORS}.txt"
 
 with open(output_file, "w") as f:
 
-    f.write("Optimized Anchors\n\n")
+    f.write("Traffic Sign Optimized Anchors\n")
+    f.write("================================\n\n")
+
+    f.write(f"Dataset: {DATASET.resolve()}\n")
+    f.write(f"Image size: {IMG_SIZE}\n")
+    f.write(f"Training boxes: {len(boxes)}\n")
+    f.write(f"Number of anchors: {NUM_ANCHORS}\n\n")
 
     for w, h in anchor_list:
         f.write(f"{w},{h}\n")
 
-print(f"\nSaved to {output_file}")
 
-print("\nYOLO format:\n")
+# -------------------------------------------------------
+# YOLO YAML format
+# -------------------------------------------------------
+
+print(f"\nSaved to: {output_file}")
+
+print("\nYOLO YAML anchor format:\n")
 
 for i in range(0, len(anchor_list), 3):
 
     row = anchor_list[i:i + 3]
 
-    print(" ".join(f"{w},{h}" for w, h in row))
+    print(
+        "  - [" +
+        ", ".join(
+            f"{w}, {h}" for w, h in row
+        ) +
+        "]"
+    )
+
+
+print("\n========================================")
+print("Anchor generation completed")
+print("========================================")
