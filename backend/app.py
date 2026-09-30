@@ -56,6 +56,17 @@ MODEL_CONFIG = {
             / "best.pt"
         ),
     ),
+    "RDD_22": os.getenv(
+        "RDD4D_MODEL_PATH",
+        str(
+            YOLO_DIR
+            / "runs"
+            / "train"
+            / "enhanced_rdd2022_final"
+            / "weights"
+            / "best.pt"
+        ),
+    ),
     "Traffic Sign": os.getenv(
         "TRAFFIC_SIGN_MODEL_PATH",
         str(
@@ -242,32 +253,32 @@ def render_all_detections(image, detections):
         )
 
     # Small legend in the top-left corner.
-    legend_x = 14
-    legend_y = 14
-    legend_h = 30
-    legend_w = 185
+    # legend_x = 14
+    # legend_y = 14
+    # legend_h = 30
+    # legend_w = 185
 
-    draw.rounded_rectangle(
-        [
-            legend_x,
-            legend_y,
-            legend_x + legend_w,
-            legend_y + legend_h * len(MODEL_COLORS) + 8,
-        ],
-        radius=6,
-        fill=(10, 18, 31, 225),
-    )
+    # draw.rounded_rectangle(
+    #     [
+    #         legend_x,
+    #         legend_y,
+    #         legend_x + legend_w,
+    #         legend_y + legend_h * len(MODEL_COLORS) + 8,
+    #     ],
+    #     radius=6,
+    #     fill=(10, 18, 31, 225),
+    # )
 
-    y = legend_y + 7
-    for model_name, color in MODEL_COLORS.items():
-        draw.rectangle([legend_x + 8, y + 3, legend_x + 20, y + 15], fill=color)
-        draw.text(
-            (legend_x + 28, y),
-            model_name,
-            fill=(240, 245, 250),
-            font=small_font,
-        )
-        y += legend_h
+    # y = legend_y + 7
+    # for model_name, color in MODEL_COLORS.items():
+    #     draw.rectangle([legend_x + 8, y + 3, legend_x + 20, y + 15], fill=color)
+    #     draw.text(
+    #         (legend_x + 28, y),
+    #         model_name,
+    #         fill=(240, 245, 250),
+    #         font=small_font,
+    #     )
+    #     y += legend_h
 
     return output
 
