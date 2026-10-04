@@ -16,3 +16,12 @@ python yolov5\train.py --resume runs\train\rdd4d_main\weights\last.pt
                         backend start:
 uvicorn app:app --reload
 python yolov5\train.py --resume yolov5\runs\train\enhanced_rdd2022_final\weights\last.pt --workers 0
+
+python classify/train.py --model yolov5s-cls.pt --data "C:\Users\ppart\Desktop\YOLO\datasets\traffic_sign_classification_dataset" --epochs 1 --img 224 --batch 32 --name traffic_sign_cls_test  
+python classify/train.py --model runs\train-cls\traffic_sign_cls_50\weights\last.pt --data "C:\Users\ppart\Desktop\YOLO\datasets\traffic_sign_classification_dataset" --epochs 50 --batch-size 16 --imgsz 224 --device cpu --workers 2 --name traffic_sign_cls_50 --exist-ok
+
+"C:\Users\ppart\Desktop\test.JPG"
+python classify/predict.py --weights runs\train-cls\traffic_sign_cls_50\weights\best.pt --source "C:\Users\ppart\Desktop\test.JPG" --imgsz 224 --device cpu
+
+
+python classify/predict.py --weights runs\train-cls\traffic_sign_cls_50\weights\best.pt --source "path\to\test\images" --imgsz 224 --device cpu
