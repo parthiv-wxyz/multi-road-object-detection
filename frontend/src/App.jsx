@@ -1,5 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
+  Aperture,
+  ArrowUp,
+  FileImage,
+  Image as ImageIcon,
+  Maximize2,
+  Play,
+  RefreshCcw,
+  ScanSearch,
+  Timer,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import sampleRoad from "./assets/sample-road.jpg";
 import "./App.css";
 
@@ -7,11 +23,48 @@ const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
-function Icon({ children, label }) {
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const trailAnimations = [
+  { x: ["-18vw", "18vw", "-8vw"], y: ["6vh", "24vh", "8vh"], duration: 18 },
+  { x: ["14vw", "-16vw", "10vw"], y: ["40vh", "22vh", "46vh"], duration: 22 },
+  { x: ["-10vw", "16vw", "-14vw"], y: ["70vh", "54vh", "72vh"], duration: 20 },
+];
+
+function MotionBackdrop() {
   return (
-    <span aria-hidden="true" className="icon" title={label}>
+    <div className="live-backdrop" aria-hidden="true">
+      <div className="backdrop-grid" />
+      {trailAnimations.map((trail, index) => (
+        <motion.span
+          className={`motion-trail trail-${index + 1}`}
+          key={trail.duration}
+          animate={{ x: trail.x, y: trail.y, rotate: [0, 8, -6, 0] }}
+          transition={{
+            duration: trail.duration,
+            ease: "easeInOut",
+            repeat: Infinity,
+            repeatType: "mirror",
+          }}
+        />
+      ))}
+      <motion.span
+        className="scanner-line"
+        animate={{ x: ["-25vw", "125vw"] }}
+        transition={{ duration: 12, ease: "linear", repeat: Infinity }}
+      />
+    </div>
+  );
+}
+
+function IconButton({ children, label, ...props }) {
+  return (
+    <button type="button" aria-label={label} title={label} {...props}>
       {children}
-    </span>
+    </button>
   );
 }
 
@@ -26,54 +79,66 @@ function ZoomToolbar({
   const stopViewerDrag = (event) => event.stopPropagation();
 
   return (
-    <div
+    <motion.div
       className="zoom-toolbar"
       aria-label="Image zoom controls"
       onPointerDown={stopViewerDrag}
       onWheel={stopViewerDrag}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24 }}
     >
-      <button
-        type="button"
+      <IconButton
         onClick={() => onZoom(zoom - ZOOM_STEP)}
         disabled={zoom === MIN_ZOOM}
-        aria-label="Zoom out"
-        title="Zoom out"
+        label="Zoom out"
       >
-        <Icon label="Zoom out">&#8722;</Icon>
-      </button>
+        <ZoomOut size={16} />
+      </IconButton>
       <output aria-label={`Zoom level ${Math.round(zoom * 100)} percent`}>
         {Math.round(zoom * 100)}%
       </output>
-      <button
-        type="button"
+      <IconButton
         onClick={() => onZoom(zoom + ZOOM_STEP)}
         disabled={zoom === MAX_ZOOM}
-        aria-label="Zoom in"
-        title="Zoom in"
+        label="Zoom in"
       >
-        <Icon label="Zoom in">+</Icon>
-      </button>
+        <ZoomIn size={16} />
+      </IconButton>
       <span className="toolbar-divider" />
-      <button
-        type="button"
+      <IconButton
         onClick={onReset}
         disabled={zoom === MIN_ZOOM && pan.x === 0 && pan.y === 0}
-        aria-label="Reset image view"
-        title="Reset image view"
+        label="Reset image view"
       >
-        <Icon label="Reset image view">&#8634;</Icon>
-      </button>
+        <RefreshCcw size={15} />
+      </IconButton>
       {showFullscreen && (
-        <button
-          type="button"
-          onClick={onFullscreen}
-          aria-label="Open fullscreen image"
-          title="Open fullscreen image"
-        >
-          <Icon label="Open fullscreen image">&#8599;</Icon>
-        </button>
+        <IconButton onClick={onFullscreen} label="Open fullscreen image">
+          <Maximize2 size={15} />
+        </IconButton>
       )}
-    </div>
+    </motion.div>
+  );
+}
+
+function MetricCard({ icon: Icon, label, value, detail, delay = 0 }) {
+  return (
+    <motion.article
+      className="metric"
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      transition={{ duration: 0.45, delay }}
+      whileHover={{ y: -4 }}
+    >
+      <span className="metric-icon">
+        <Icon size={18} />
+      </span>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </motion.article>
   );
 }
 
@@ -124,6 +189,7 @@ function App() {
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (originalImage) URL.revokeObjectURL(originalImage);
     setSelectedFile(file);
     setOriginalImage(URL.createObjectURL(file));
     setResultImage(null);
@@ -153,6 +219,11 @@ function App() {
       setTotalObjects(data.total_objects);
       setInferenceTime(data.inference_time_ms);
       resetViewer();
+      requestAnimationFrame(() => {
+        document
+          .getElementById("results")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (requestError) {
       console.error(requestError);
       setError(
@@ -205,13 +276,19 @@ function App() {
 
   return (
     <div className="app-shell">
+      <MotionBackdrop />
       <header className="topbar">
         <a className="brand" href="#workspace" aria-label="RoadSight dashboard">
           <span className="brand-mark">
-            <span />
+            <Aperture size={17} />
           </span>
           <span>RoadSight</span>
         </a>
+        <nav className="topbar-links" aria-label="Dashboard sections">
+          <a href="#workspace">Workspace</a>
+          <a href="#results">Results</a>
+          <a href="#detections">Log</a>
+        </nav>
         <div className="topbar-meta">
           <span className="model-name">IDD Final</span>
           <span className="ready-status">
@@ -219,82 +296,138 @@ function App() {
           </span>
         </div>
       </header>
+
       <main id="workspace" className="workspace">
-        <section className="workspace-heading" aria-labelledby="page-title">
-          <div>
+        <motion.section
+          className="hero"
+          aria-labelledby="page-title"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+        >
+          <div className="hero-copy">
             <p className="eyebrow">Detection workspace</p>
-            <h1 id="page-title">Inspect every road scene with clarity.</h1>
+            <h1 id="page-title">Road scene intelligence, tuned for review.</h1>
             <p className="heading-copy">
-              Upload an image, run the model, then inspect every detection at
-              the level of detail you need.
+              Upload a frame, run the local YOLO model, and inspect every
+              detection with responsive zoom controls and a clean audit trail.
             </p>
+            <div className="hero-actions">
+              <label className="file-action">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleFileChange}
+                />
+                <ArrowUp size={17} />
+                <span>{selectedFile ? "Replace image" : "Choose image"}</span>
+              </label>
+              <button
+                className="run-button"
+                onClick={runDetection}
+                disabled={!selectedFile || loading}
+              >
+                <Play size={17} fill="currentColor" />
+                <span>{loading ? "Analyzing scene" : "Run detection"}</span>
+              </button>
+            </div>
           </div>
-          <label className="file-action">
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              onChange={handleFileChange}
+          <motion.div
+            className="hero-preview"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.14 }}
+          >
+            <img
+              src={originalImage || sampleRoad}
+              alt={originalImage ? "Uploaded road scene" : "Sample road scene"}
             />
-            <Icon label="Upload image">&#8593;</Icon>
-            <span>{selectedFile ? "Replace image" : "Choose image"}</span>
-          </label>
-        </section>
-        <section className="control-bar" aria-label="Detection controls">
+            <span className="preview-chip">
+              <ScanSearch size={14} />
+              {resultImage ? "Detection complete" : "Ready to inspect"}
+            </span>
+          </motion.div>
+        </motion.section>
+
+        <motion.section
+          className="control-bar"
+          aria-label="Detection controls"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.45, delay: 0.1 }}
+        >
           <div className="selected-file">
             <span className="file-icon">
-              <Icon label="Image">&#9635;</Icon>
+              <FileImage size={20} />
             </span>
             <div>
               <span className="control-label">Input image</span>
               <strong>{selectedFile?.name || "No image selected"}</strong>
             </div>
           </div>
-          <button
-            className="run-button"
-            onClick={runDetection}
-            disabled={!selectedFile || loading}
-          >
-            <Icon label="Run detection">&#9654;</Icon>
-            <span>{loading ? "Analyzing scene" : "Run detection"}</span>
-          </button>
-        </section>
-        {error && (
-          <p className="error-message" role="alert">
-            {error}
-          </p>
-        )}
+          <a className="jump-link" href="#results">
+            View results
+          </a>
+        </motion.section>
+
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              className="error-message"
+              role="alert"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
         <section className="metrics" aria-label="Detection summary">
-          <article className="metric">
-            <span>Objects found</span>
-            <strong>{totalObjects}</strong>
-            <small>
-              {resultImage ? "Across this frame" : "Waiting for a result"}
-            </small>
-          </article>
-          <article className="metric">
-            <span>Inference time</span>
-            <strong>{inferenceTime ? `${inferenceTime} ms` : "--"}</strong>
-            <small>
-              {inferenceTime ? "Model response" : "No measurement yet"}
-            </small>
-          </article>
-          <article className="metric metric-status">
-            <span>Run status</span>
-            <strong>
-              {loading ? "Analyzing" : resultImage ? "Complete" : "Standby"}
-            </strong>
-            <small>
-              <i />{" "}
-              {loading
+          <MetricCard
+            icon={ScanSearch}
+            label="Objects found"
+            value={totalObjects}
+            detail={resultImage ? "Across this frame" : "Waiting for a result"}
+            delay={0.16}
+          />
+          <MetricCard
+            icon={Timer}
+            label="Inference time"
+            value={inferenceTime ? `${inferenceTime} ms` : "--"}
+            detail={inferenceTime ? "Model response" : "No measurement yet"}
+            delay={0.22}
+          />
+          <MetricCard
+            icon={Activity}
+            label="Run status"
+            value={loading ? "Analyzing" : resultImage ? "Complete" : "Standby"}
+            detail={
+              loading
                 ? "Model is working"
                 : resultImage
                   ? "Result is ready"
-                  : "Ready when you are"}
-            </small>
-          </article>
+                  : "Ready when you are"
+            }
+            delay={0.28}
+          />
         </section>
-        <section className="inspection-grid" aria-label="Image comparison">
-          <article className="image-panel">
+
+        <section
+          id="results"
+          className="inspection-grid"
+          aria-label="Image comparison"
+        >
+          <motion.article
+            className="image-panel"
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45 }}
+          >
             <div className="panel-header">
               <div>
                 <p className="panel-kicker">Source frame</p>
@@ -305,16 +438,22 @@ function App() {
             <div className="source-canvas">
               <img
                 src={originalImage || sampleRoad}
-                alt={
-                  originalImage ? "Uploaded road scene" : "Sample road scene"
-                }
+                alt={originalImage ? "Uploaded road scene" : "Sample road scene"}
               />
               {!originalImage && (
                 <span className="sample-note">Sample road frame</span>
               )}
             </div>
-          </article>
-          <article className="image-panel result-panel">
+          </motion.article>
+
+          <motion.article
+            className="image-panel result-panel"
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45, delay: 0.08 }}
+          >
             <div className="panel-header">
               <div>
                 <p className="panel-kicker">Model output</p>
@@ -338,13 +477,17 @@ function App() {
               onPointerCancel={handlePointerUp}
               onDoubleClick={toggleZoom}
             >
-              <img
+              <motion.img
                 src={resultSource}
                 alt={resultAlt}
                 draggable="false"
                 style={{
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 }}
+                key={resultSource}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.28 }}
               />
               {!resultImage && (
                 <span className="sample-note">
@@ -361,13 +504,20 @@ function App() {
               />
             </div>
             <p className="viewer-hint">
-              Use the controls or mouse wheel to zoom. Drag to pan when zoomed.
+              Mouse wheel zooms, double-click toggles zoom, and dragging pans the frame.
             </p>
-          </article>
+          </motion.article>
         </section>
-        <section
+
+        <motion.section
+          id="detections"
           className="detection-list"
           aria-labelledby="detections-heading"
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.16 }}
+          transition={{ duration: 0.45 }}
         >
           <div className="list-heading">
             <div>
@@ -376,102 +526,130 @@ function App() {
             </div>
             <span>{detections.length} items</span>
           </div>
-          {detections.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Object</th>
-                    <th>Confidence</th>
-                    <th>Location</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detections.map((detection, index) => (
-                    <tr key={`${detection.class}-${index}`}>
-                      <td>
-                        <span className="object-index">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        {detection.class}
-                      </td>
-                      <td>
-                        <span className="confidence">
-                          {detection.confidence}%
-                        </span>
-                      </td>
-                      <td>
-                        {Math.round(detection.xmin)},{" "}
-                        {Math.round(detection.ymin)} to{" "}
-                        {Math.round(detection.xmax)},{" "}
-                        {Math.round(detection.ymax)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-log">
-              <span>
-                <Icon label="No detections yet">&#9678;</Icon>
-              </span>
-              <p>Detected objects will appear here after a completed run.</p>
-            </div>
-          )}
-        </section>
-      </main>
-      {isFullscreen && (
-        <div
-          className="fullscreen-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Fullscreen detection result"
-          onClick={closeFullscreen}
-        >
-          <div
-            className="fullscreen-view"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="fullscreen-header">
-              <span>Detection result</span>
-              <button
-                onClick={closeFullscreen}
-                aria-label="Close fullscreen image"
-                title="Close"
+          <AnimatePresence mode="wait">
+            {detections.length > 0 ? (
+              <motion.div
+                className="table-wrap"
+                key="detections"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <Icon label="Close">&#215;</Icon>
-              </button>
-            </div>
-            <div
-              className={`fullscreen-canvas ${zoom > MIN_ZOOM ? "is-zoomed" : ""}`}
-              onWheel={handleViewerWheel}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onDoubleClick={toggleZoom}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Object</th>
+                      <th>Confidence</th>
+                      <th>Location</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detections.map((detection, index) => (
+                      <motion.tr
+                        key={`${detection.class}-${index}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.28, delay: index * 0.03 }}
+                      >
+                        <td>
+                          <span className="object-index">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          {detection.class}
+                        </td>
+                        <td>
+                          <span className="confidence">
+                            {detection.confidence}%
+                          </span>
+                        </td>
+                        <td>
+                          {Math.round(detection.xmin)},{" "}
+                          {Math.round(detection.ymin)} to{" "}
+                          {Math.round(detection.xmax)},{" "}
+                          {Math.round(detection.ymax)}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="empty-log"
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <span>
+                  <ImageIcon size={18} />
+                </span>
+                <p>Detected objects will appear here after a completed run.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+      </main>
+
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div
+            className="fullscreen-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Fullscreen detection result"
+            onClick={closeFullscreen}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="fullscreen-view"
+              onClick={(event) => event.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.22 }}
             >
-              <img
-                src={resultSource}
-                alt={resultAlt}
-                draggable="false"
-                style={{
-                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                }}
-              />
-              <ZoomToolbar
-                zoom={zoom}
-                pan={pan}
-                onZoom={updateZoom}
-                onReset={resetViewer}
-                showFullscreen={false}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="fullscreen-header">
+                <span>Detection result</span>
+                <IconButton
+                  onClick={closeFullscreen}
+                  label="Close fullscreen image"
+                >
+                  <X size={19} />
+                </IconButton>
+              </div>
+              <div
+                className={`fullscreen-canvas ${zoom > MIN_ZOOM ? "is-zoomed" : ""}`}
+                onWheel={handleViewerWheel}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                onDoubleClick={toggleZoom}
+              >
+                <img
+                  src={resultSource}
+                  alt={resultAlt}
+                  draggable="false"
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  }}
+                />
+                <ZoomToolbar
+                  zoom={zoom}
+                  pan={pan}
+                  onZoom={updateZoom}
+                  onReset={resetViewer}
+                  showFullscreen={false}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
