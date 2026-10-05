@@ -25,3 +25,5 @@ python classify/predict.py --weights runs\train-cls\traffic_sign_cls_50\weights\
 
 
 python classify/predict.py --weights runs\train-cls\traffic_sign_cls_50\weights\best.pt --source "path\to\test\images" --imgsz 224 --device cpu
+
+python train.py --img 1280 --batch-size 4 --epochs 100 --data data\traffic_sign.yaml --cfg models\traffic_sign_enhanced.yaml --weights yolov5s.pt --device 0 --name traffic_sign_enhanced_1280_pretrained
