@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   Aperture,
   ArrowUp,
+  ClipboardPaste,
   FileImage,
   Image as ImageIcon,
   Maximize2,
@@ -12,6 +13,7 @@ import {
   RefreshCcw,
   ScanSearch,
   Timer,
+  UploadCloud,
   X,
   ZoomIn,
   ZoomOut,
@@ -22,6 +24,10 @@ import "./App.css";
 const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
+
+const hasFiles = (event) =>
+  Array.from(event.dataTransfer?.types || []).includes("Files");
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -154,7 +160,9 @@ function App() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef(null);
+  const dragDepth = useRef(0);
 
   useEffect(
     () => () => {
@@ -163,10 +171,10 @@ function App() {
     [originalImage],
   );
 
-  const resetViewer = () => {
+  const resetViewer = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
+  }, []);
 
   useEffect(() => {
     const closeOnEscape = (event) => {
@@ -178,7 +186,7 @@ function App() {
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, []);
+  }, [resetViewer]);
 
   const updateZoom = (nextZoom) => {
     const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
@@ -186,23 +194,87 @@ function App() {
     if (clampedZoom === MIN_ZOOM) setPan({ x: 0, y: 0 });
   };
 
+  // Single entry point for every input method (picker, drag and drop, paste).
+  // The previous object URL is revoked by the effect above when it changes.
+  const loadFile = useCallback(
+    (file) => {
+      if (!file) return;
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setError("Unsupported file. Use a PNG or JPEG road image.");
+        return;
+      }
+      setSelectedFile(file);
+      setOriginalImage(URL.createObjectURL(file));
+      setResultImage(null);
+      setDetections([]);
+      setTotalObjects(0);
+      setInferenceTime(null);
+      setError("");
+      resetViewer();
+    },
+    [resetViewer],
+  );
+
   const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (originalImage) URL.revokeObjectURL(originalImage);
-    setSelectedFile(file);
-    setOriginalImage(URL.createObjectURL(file));
-    setResultImage(null);
-    setDetections([]);
-    setTotalObjects(0);
-    setInferenceTime(null);
-    setError("");
-    resetViewer();
+    loadFile(event.target.files?.[0]);
+    event.target.value = ""; // allow re-selecting the same file
   };
+
+  // Page-wide drag and drop + clipboard paste
+  useEffect(() => {
+    const onDragEnter = (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dragDepth.current += 1;
+      setIsDragging(true);
+    };
+    const onDragOver = (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault(); // required so the drop event fires
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const onDragLeave = (event) => {
+      if (!hasFiles(event)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setIsDragging(false);
+    };
+    const onDrop = (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dragDepth.current = 0;
+      setIsDragging(false);
+      const file = Array.from(event.dataTransfer.files).find((f) =>
+        f.type.startsWith("image/"),
+      );
+      if (file) loadFile(file);
+      else setError("No image found in the dropped item.");
+    };
+    const onPaste = (event) => {
+      const item = Array.from(event.clipboardData?.items || []).find(
+        (i) => i.kind === "file" && i.type.startsWith("image/"),
+      );
+      if (!item) return;
+      event.preventDefault();
+      loadFile(item.getAsFile());
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("paste", onPaste);
+    };
+  }, [loadFile]);
 
   const runDetection = async () => {
     if (!selectedFile) {
-      setError("Choose a road image before running detection.");
+      setError("Add a road image (choose, drag and drop, or paste) before running detection.");
       return;
     }
     setLoading(true);
@@ -277,6 +349,24 @@ function App() {
   return (
     <div className="app-shell">
       <MotionBackdrop />
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            className="drop-overlay"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <div className="drop-overlay-card">
+              <UploadCloud size={40} />
+              <strong>Drop image to load it</strong>
+              <span>PNG or JPEG</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <header className="topbar">
         <a className="brand" href="#workspace" aria-label="RoadSight dashboard">
           <span className="brand-mark">
@@ -331,6 +421,13 @@ function App() {
                 <span>{loading ? "Analyzing scene" : "Run detection"}</span>
               </button>
             </div>
+            <p className="input-hint">
+              <ClipboardPaste size={14} />
+              <span>
+                or drag and drop an image anywhere, or paste with{" "}
+                <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>V</kbd>
+              </span>
+            </p>
           </div>
           <motion.div
             className="hero-preview"
@@ -524,7 +621,11 @@ function App() {
               <p className="panel-kicker">Detection log</p>
               <h2 id="detections-heading">Detected objects</h2>
             </div>
-            <span>{detections.length} items</span>
+            <span>
+              {detections.length > 0
+                ? `${new Set(detections.map((d) => d.class)).size} classes`
+                : "0 items"}
+            </span>
           </div>
           <AnimatePresence mode="wait">
             {detections.length > 0 ? (
@@ -538,38 +639,42 @@ function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Object</th>
-                      <th>Confidence</th>
-                      <th>Location</th>
+                      <th>Class</th>
+                      <th>Count</th>
+                      <th>Avg Confidence</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detections.map((detection, index) => (
-                      <motion.tr
-                        key={`${detection.class}-${index}`}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.28, delay: index * 0.03 }}
-                      >
-                        <td>
-                          <span className="object-index">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          {detection.class}
-                        </td>
-                        <td>
-                          <span className="confidence">
-                            {detection.confidence}%
-                          </span>
-                        </td>
-                        <td>
-                          {Math.round(detection.xmin)},{" "}
-                          {Math.round(detection.ymin)} to{" "}
-                          {Math.round(detection.xmax)},{" "}
-                          {Math.round(detection.ymax)}
-                        </td>
-                      </motion.tr>
-                    ))}
+                    {Object.entries(
+                      detections.reduce((acc, d) => {
+                        if (!acc[d.class]) acc[d.class] = { count: 0, totalConf: 0 };
+                        acc[d.class].count += 1;
+                        acc[d.class].totalConf += d.confidence;
+                        return acc;
+                      }, {}),
+                    )
+                      .sort(([, a], [, b]) => b.count - a.count)
+                      .map(([cls, { count, totalConf }], index) => (
+                        <motion.tr
+                          key={cls}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.28, delay: index * 0.03 }}
+                        >
+                          <td>
+                            <span className="object-index">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            {cls}
+                          </td>
+                          <td>{count}</td>
+                          <td>
+                            <span className="confidence">
+                              {(totalConf / count).toFixed(1)}%
+                            </span>
+                          </td>
+                        </motion.tr>
+                      ))}
                   </tbody>
                 </table>
               </motion.div>
