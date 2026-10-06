@@ -2,6 +2,7 @@ import os
 import cv2
 import torch
 import numpy as np
+import csv
 
 from pathlib import Path
 
@@ -21,34 +22,52 @@ DETECTOR_WEIGHTS = (
 )
 
 CLASSIFIER_WEIGHTS = (
-    r"runs\train-cls\traffic_sign_cls_50"
+    r"runs\train-cls\indian_traffic_sign_58cls2"
     r"\weights\best.pt"
 )
 
-SOURCE = r"E:\Parthiv\multi-road-object-detection\datasets\traffic_sign\images\test"
+SOURCE = (
+    r"E:\Parthiv\multi-road-object-detection"
+    r"\datasets\traffic_sign\images\test"
+)
 
-OUTPUT_DIR = r"runs\traffic_sign_pipeline_v4_conf40_dconf35_pad0"
-CROP_DIR = r"runs\traffic_sign_pipeline_v4_conf40_dconf35_pad0_crops"
+CSV_PATH = (
+    r"E:\Parthiv\multi-road-object-detection\datasets\Indian-Traffic-Sign-Classification\traffic_sign.csv"
+)
 
-DEVICE = "0"
+OUTPUT_DIR = (
+    r"runs\traffic_sign_pipeline_v4_384_csv"
+)
+
+CROP_DIR = (
+    r"runs\traffic_sign_pipeline_v4_crops_384_csv"
+)
+
+
+# ============================================================
+# INFERENCE SETTINGS
+# ============================================================
 
 DETECT_IMG_SIZE = 1280
-CLASSIFY_IMG_SIZE = 224
+CLASSIFY_IMG_SIZE = 384
 
-# Detector threshold
+# Detector confidence
 DETECT_CONF = 0.40
+
+# Classifier confidence
+CLASSIFY_CONF = 0.35
 
 # Detector NMS IoU
 DETECT_IOU = 0.45
 
-# Extra duplicate suppression
+# Additional duplicate suppression
 DUPLICATE_IOU = 0.60
 
-# Classifier threshold
-CLASSIFY_CONF = 0.35
-
-# Padding around detector box
+# Padding around detected sign
 CROP_PADDING = 0.00
+
+# GPU
+DEVICE = "0"
 
 
 # ============================================================
@@ -71,7 +90,7 @@ detector = attempt_load(
 
 detector.eval()
 
-# FP16 detector inference on RTX 4070.
+# FP16 on NVIDIA GPU
 if device.type != "cpu":
     detector.half()
 
@@ -92,15 +111,107 @@ checkpoint = torch.load(
 
 classifier = checkpoint["model"].float().eval()
 
+# Original classifier class ordering
 classifier_names = classifier.names
-
-CLASS_TO_ID = {
-    name: i
-    for i, name in enumerate(classifier_names)
-}
 
 print("Classifier loaded.")
 print(f"Classifier classes: {len(classifier_names)}")
+
+
+# ============================================================
+# LOAD CLASS NAMES FROM CSV
+# ============================================================
+
+def load_class_names_from_csv(csv_path, model):
+    """
+    Convert:
+
+        classifier output index
+              ↓
+        original ClassId
+              ↓
+        actual traffic sign name
+
+    Example:
+
+        classifier index 47
+              ↓
+        ClassId 52
+              ↓
+        Bus stop
+    """
+
+    # YOLOv5 classification dataset sorts folder names
+    # lexicographically.
+    #
+    # Therefore:
+    # classifier index != original numeric ClassId
+
+    classifier_ids = list(model.names)
+
+    # Read CSV:
+    # ClassId -> Name
+    csv_names = {}
+
+    with open(
+        csv_path,
+        "r",
+        encoding="utf-8-sig"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            class_id = int(row["ClassId"])
+
+            name = row["Name"].strip()
+
+            csv_names[class_id] = name
+
+    # Build:
+    #
+    # classifier index -> actual sign name
+
+    class_names = {}
+
+    for classifier_index, class_id_string in enumerate(
+        classifier_ids
+    ):
+
+        class_id = int(class_id_string)
+
+        if class_id in csv_names:
+
+            class_names[classifier_index] = (
+                csv_names[class_id]
+            )
+
+        else:
+
+            class_names[classifier_index] = (
+                f"Class_{class_id}"
+            )
+
+    return class_names
+
+
+# ============================================================
+# CREATE ACTUAL CLASS MAPPING
+# ============================================================
+
+CLASS_NAMES = load_class_names_from_csv(
+    CSV_PATH,
+    classifier
+)
+
+print("\nClassifier class mapping:")
+
+for index, name in CLASS_NAMES.items():
+
+    print(
+        f"  {index}: {name}"
+    )
 
 
 # ============================================================
@@ -118,11 +229,25 @@ classification_transform = classify_transforms(
 
 def calculate_iou(box1, box2):
 
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
+    x1 = max(
+        box1[0],
+        box2[0]
+    )
 
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
+    y1 = max(
+        box1[1],
+        box2[1]
+    )
+
+    x2 = min(
+        box1[2],
+        box2[2]
+    )
+
+    y2 = min(
+        box1[3],
+        box2[3]
+    )
 
     intersection_width = max(
         0,
@@ -140,18 +265,37 @@ def calculate_iou(box1, box2):
     )
 
     area1 = (
-        max(0, box1[2] - box1[0]) *
-        max(0, box1[3] - box1[1])
+        max(
+            0,
+            box1[2] - box1[0]
+        )
+        *
+        max(
+            0,
+            box1[3] - box1[1]
+        )
     )
 
     area2 = (
-        max(0, box2[2] - box2[0]) *
-        max(0, box2[3] - box2[1])
+        max(
+            0,
+            box2[2] - box2[0]
+        )
+        *
+        max(
+            0,
+            box2[3] - box2[1]
+        )
     )
 
-    union = area1 + area2 - intersection
+    union = (
+        area1 +
+        area2 -
+        intersection
+    )
 
     if union <= 0:
+
         return 0.0
 
     return intersection / union
@@ -164,9 +308,10 @@ def calculate_iou(box1, box2):
 def remove_duplicate_detections(detections):
 
     if len(detections) <= 1:
+
         return detections
 
-    # Sort by detector confidence
+    # Highest detector confidence first
     detections = sorted(
         detections,
         key=lambda x: x[4],
@@ -193,10 +338,14 @@ def remove_duplicate_detections(detections):
             if iou >= DUPLICATE_IOU:
 
                 duplicate = True
+
                 break
 
         if not duplicate:
-            kept.append(detection)
+
+            kept.append(
+                detection
+            )
 
     return kept
 
@@ -205,15 +354,25 @@ def remove_duplicate_detections(detections):
 # CROP WITH PADDING
 # ============================================================
 
-def crop_with_padding(image, box):
+def crop_with_padding(
+    image,
+    box
+):
 
     x1, y1, x2, y2 = box
 
     width = x2 - x1
     height = y2 - y1
 
-    pad_x = int(width * CROP_PADDING)
-    pad_y = int(height * CROP_PADDING)
+    pad_x = int(
+        width *
+        CROP_PADDING
+    )
+
+    pad_y = int(
+        height *
+        CROP_PADDING
+    )
 
     x1 = max(
         0,
@@ -235,12 +394,11 @@ def crop_with_padding(image, box):
         y2 + pad_y
     )
 
-    return image[y1:y2, x1:x2]
+    return image[
+        y1:y2,
+        x1:x2
+    ]
 
-
-# ============================================================
-# CLASSIFY SIGN
-# ============================================================
 
 # ============================================================
 # CLASSIFY SIGN
@@ -248,47 +406,84 @@ def crop_with_padding(image, box):
 
 def classify_sign(crop):
 
+    # OpenCV BGR -> RGB
     crop_rgb = cv2.cvtColor(
         crop,
         cv2.COLOR_BGR2RGB
     )
 
+    # YOLOv5 classification preprocessing
     tensor = classification_transform(
         crop_rgb
     )
 
-    tensor = tensor.unsqueeze(0).to(device)
+    tensor = tensor.unsqueeze(
+        0
+    ).to(device)
 
     with torch.no_grad():
-        logits = classifier(tensor)[0]
+
+        logits = classifier(
+            tensor
+        )[0]
 
     probabilities = torch.softmax(
         logits,
         dim=0
     )
 
-    top_k = min(3, len(classifier_names))
+    top_k = min(
+        3,
+        len(classifier_names)
+    )
 
     top_probabilities, top_ids = torch.topk(
         probabilities,
         top_k
     )
 
-    top_predictions = [
-        (
-            classifier_names[int(class_id)],
-            float(confidence)
-        )
-        for confidence, class_id in zip(
-            top_probabilities,
-            top_ids
-        )
-    ]
+    # ========================================================
+    # IMPORTANT:
+    #
+    # top_ids contains classifier indices.
+    #
+    # We convert them through CLASS_NAMES.
+    # ========================================================
 
+    top_predictions = []
+
+    for confidence, class_id in zip(
+        top_probabilities,
+        top_ids
+    ):
+
+        classifier_index = int(
+            class_id
+        )
+
+        class_name = CLASS_NAMES.get(
+            classifier_index,
+            f"CLASS_{classifier_index}"
+        )
+
+        top_predictions.append(
+            (
+                class_name,
+                float(confidence)
+            )
+        )
+
+    # Best prediction
     class_name = top_predictions[0][0]
-    class_confidence = top_predictions[0][1]
 
+    class_confidence = (
+        top_predictions[0][1]
+    )
+
+    # Unknown if classifier confidence
+    # is below threshold
     if class_confidence < CLASSIFY_CONF:
+
         class_name = "UNKNOWN"
 
     return (
@@ -321,9 +516,10 @@ def process_image(
 
     original = image.copy()
 
-    # --------------------------------------------------------
-    # Detector preprocessing
-    # --------------------------------------------------------
+
+    # ========================================================
+    # DETECTOR PREPROCESSING
+    # ========================================================
 
     img = letterbox(
         image,
@@ -346,17 +542,27 @@ def process_image(
     ).to(device)
 
     if device.type != "cpu":
-        img = img.half() / 255.0
+
+        img = (
+            img.half()
+            / 255.0
+        )
+
     else:
-        img = img.float() / 255.0
+
+        img = (
+            img.float()
+            / 255.0
+        )
 
     if img.ndimension() == 3:
 
         img = img.unsqueeze(0)
 
-    # --------------------------------------------------------
-    # Detection
-    # --------------------------------------------------------
+
+    # ========================================================
+    # DETECTION
+    # ========================================================
 
     with torch.no_grad():
 
@@ -372,9 +578,15 @@ def process_image(
 
     all_detections = []
 
+
+    # ========================================================
+    # CONVERT DETECTIONS TO ORIGINAL IMAGE
+    # ========================================================
+
     for detection in detections:
 
         if len(detection) == 0:
+
             continue
 
         detection[:, :4] = scale_boxes(
@@ -398,18 +610,21 @@ def process_image(
                 row[5].item()
             )
 
-            all_detections.append([
-                x1,
-                y1,
-                x2,
-                y2,
-                detector_confidence,
-                detector_class_id
-            ])
+            all_detections.append(
+                [
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    detector_confidence,
+                    detector_class_id
+                ]
+            )
 
-    # --------------------------------------------------------
-    # Additional duplicate removal
-    # --------------------------------------------------------
+
+    # ========================================================
+    # ADDITIONAL DUPLICATE REMOVAL
+    # ========================================================
 
     all_detections = (
         remove_duplicate_detections(
@@ -417,9 +632,10 @@ def process_image(
         )
     )
 
-    # --------------------------------------------------------
-    # Classification
-    # --------------------------------------------------------
+
+    # ========================================================
+    # CLASSIFICATION
+    # ========================================================
 
     detection_count = 0
 
@@ -434,7 +650,11 @@ def process_image(
             detector_class_id
         ) = detection
 
-        # Crop with padding
+
+        # ====================================================
+        # CROP
+        # ====================================================
+
         crop = crop_with_padding(
             original,
             (
@@ -445,13 +665,16 @@ def process_image(
             )
         )
 
+        if crop.size == 0:
+
+            continue
+
+        detection_count += 1
+
         crop_filename = (
             f"{image_path.stem}_"
-            f"{detection_count + 1}.jpg"
+            f"{detection_count}.jpg"
         )
-
-        if crop.size == 0:
-            continue
 
         crop_path = (
             Path(CROP_DIR) /
@@ -463,12 +686,10 @@ def process_image(
             crop
         )
 
-        if crop.size == 0:
-            continue
 
-        # ----------------------------------------------------
-        # Detector broad class
-        # ----------------------------------------------------
+        # ====================================================
+        # BROAD DETECTOR CLASS
+        # ====================================================
 
         detector_class_name = (
             detector.names[
@@ -476,16 +697,23 @@ def process_image(
             ]
         )
 
-        class_name, class_confidence, top_predictions = (
-            classify_sign(crop)
+
+        # ====================================================
+        # FINE-GRAINED CLASSIFICATION
+        # ====================================================
+
+        (
+            class_name,
+            class_confidence,
+            top_predictions
+        ) = classify_sign(
+            crop
         )
 
-        detection_count += 1
 
-
-        # ----------------------------------------------------
-        # Label
-        # ----------------------------------------------------
+        # ====================================================
+        # LABEL
+        # ====================================================
 
         if class_name == "UNKNOWN":
 
@@ -501,9 +729,10 @@ def process_image(
                 f"{class_confidence:.2f}"
             )
 
-        # ----------------------------------------------------
-        # Draw bounding box
-        # ----------------------------------------------------
+
+        # ====================================================
+        # DRAW BOUNDING BOX
+        # ====================================================
 
         cv2.rectangle(
             original,
@@ -513,9 +742,10 @@ def process_image(
             2
         )
 
-        # ----------------------------------------------------
-        # Text
-        # ----------------------------------------------------
+
+        # ====================================================
+        # TEXT SIZE
+        # ====================================================
 
         (
             text_width,
@@ -531,6 +761,11 @@ def process_image(
             y1,
             text_height + 5
         )
+
+
+        # ====================================================
+        # TEXT BACKGROUND
+        # ====================================================
 
         cv2.rectangle(
             original,
@@ -551,6 +786,11 @@ def process_image(
             -1
         )
 
+
+        # ====================================================
+        # LABEL TEXT
+        # ====================================================
+
         cv2.putText(
             original,
             label,
@@ -565,9 +805,10 @@ def process_image(
             cv2.LINE_AA
         )
 
-        # ----------------------------------------------------
-        # Console output
-        # ----------------------------------------------------
+
+        # ====================================================
+        # CONSOLE OUTPUT
+        # ====================================================
 
         print(
             f"  Detector: "
@@ -582,18 +823,25 @@ def process_image(
         )
 
         print("  Top-3:")
-        for rank, (name, confidence) in enumerate(
+
+        for rank, (
+            name,
+            confidence
+        ) in enumerate(
             top_predictions,
             1
         ):
+
             print(
-                f"    {rank}. {name} "
+                f"    {rank}. "
+                f"{name} "
                 f"{confidence:.3f}"
             )
 
-    # --------------------------------------------------------
-    # Save
-    # --------------------------------------------------------
+
+    # ========================================================
+    # SAVE RESULT
+    # ========================================================
 
     cv2.imwrite(
         str(output_path),
@@ -627,7 +875,9 @@ def main():
         exist_ok=True
     )
 
-    source = Path(SOURCE)
+    source = Path(
+        SOURCE
+    )
 
     image_extensions = {
         ".jpg",
@@ -645,10 +895,18 @@ def main():
         if p.suffix in image_extensions
     ]
 
+
+    # ========================================================
+    # HEADER
+    # ========================================================
+
     print()
-    print("=" * 55)
-    print(" Traffic Sign Detection + Classification V4")
-    print("=" * 55)
+    print("=" * 65)
+    print(
+        " Traffic Sign Detection + "
+        "Fine-Grained Classification V4"
+    )
+    print("=" * 65)
 
     print(
         f"Images found: {len(images)}"
@@ -669,9 +927,26 @@ def main():
         f"{CROP_PADDING * 100:.0f}%"
     )
 
-    print(f"Device: {device}")
-    print(f"Detector image size: {DETECT_IMG_SIZE}")
-    print(f"Classifier image size: {CLASSIFY_IMG_SIZE}")
+    print(
+        f"Device: {device}"
+    )
+
+    print(
+        f"Detector image size: "
+        f"{DETECT_IMG_SIZE}"
+    )
+
+    print(
+        f"Classifier image size: "
+        f"{CLASSIFY_IMG_SIZE}"
+    )
+
+    print()
+
+
+    # ========================================================
+    # PROCESS ALL IMAGES
+    # ========================================================
 
     for index, image_path in enumerate(
         images,
@@ -679,14 +954,18 @@ def main():
     ):
 
         print()
+        print("-" * 65)
+
         print(
             f"[{index}/{len(images)}] "
             f"{image_path.name}"
         )
 
+        print("-" * 65)
+
         output_path = (
-            Path(OUTPUT_DIR)
-            / image_path.name
+            Path(OUTPUT_DIR) /
+            image_path.name
         )
 
         process_image(
@@ -694,14 +973,31 @@ def main():
             output_path
         )
 
+
+    # ========================================================
+    # COMPLETE
+    # ========================================================
+
     print()
-    print("=" * 55)
-    print("Pipeline completed.")
+    print("=" * 65)
+    print(
+        "Pipeline completed."
+    )
+
     print(
         f"Results: {OUTPUT_DIR}"
     )
-    print("=" * 55)
 
+    print(
+        f"Crops: {CROP_DIR}"
+    )
+
+    print("=" * 65)
+
+
+# ============================================================
+# START
+# ============================================================
 
 if __name__ == "__main__":
 
