@@ -73,7 +73,7 @@ MODEL_CONFIG = {
             YOLO_DIR
             / "runs"
             / "train"
-            / "traffic_sign_enhanced_final"
+            / "traffic_sign_enhanced_1280_pretrained"
             / "weights"
             / "best.pt"
         ),
