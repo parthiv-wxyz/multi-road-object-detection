@@ -1,0 +1,17 @@
+Dataset,Folder,Image Count
+idd,train\images,31561
+idd,val\images,10225
+rdd,test\images,5758
+rdd,train\images,26869
+rdd,val\images,5758
+road_damage,images,75
+road_damage,images\test,197
+road_damage,images\train,1003
+road_damage,images\val,288
+road_damage_v2,images\test,227
+road_damage_v2,images\train,1037
+road_damage_v2,images\val,224
+traffic_sign,images,454
+traffic_sign,images\test,47
+traffic_sign,images\train,317
+traffic_sign,images\val,90
