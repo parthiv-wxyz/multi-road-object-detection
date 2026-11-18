@@ -17,14 +17,65 @@ Usage:
 """
 
 import argparse
+import os
+import pathlib
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath
+import torch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 YOLO_DIR = ROOT / "yolov5"
 OVERLAY_DIR = ROOT / "model_changes"
+
+
+def _strip_path_objects(obj):
+    if isinstance(obj, PurePath):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _strip_path_objects(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_strip_path_objects(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_strip_path_objects(v) for v in obj)
+    return obj
+
+
+def _ensure_posix_checkpoint(weights: Path) -> Path:
+    """
+    On Linux (Kaggle/Colab), checkpoints originally trained on Windows contain
+    pickled `WindowsPath` objects that raise UnsupportedOperation in Python 3.13.
+    Re-saves a clean POSIX-safe copy with all Path metadata converted to strings.
+    """
+    if os.name == "nt":
+        return weights
+
+    if str(YOLO_DIR) not in sys.path:
+        sys.path.insert(0, str(YOLO_DIR))
+
+    # Patch both pathlib and Python 3.13's pathlib._local before unpickling
+    orig_wp = getattr(pathlib, "WindowsPath", None)
+    orig_local_wp = getattr(getattr(pathlib, "_local", None), "WindowsPath", None)
+    try:
+        pathlib.WindowsPath = pathlib.PosixPath
+        if hasattr(pathlib, "_local"):
+            pathlib._local.WindowsPath = pathlib.PosixPath
+        ckpt = torch.load(str(weights), map_location="cpu", weights_only=False)
+    finally:
+        if orig_wp is not None:
+            pathlib.WindowsPath = orig_wp
+        if orig_local_wp is not None and hasattr(pathlib, "_local"):
+            pathlib._local.WindowsPath = orig_local_wp
+
+    clean_ckpt = {
+        k: (_strip_path_objects(v) if k != "model" and k != "ema" else v)
+        for k, v in ckpt.items()
+    }
+    posix_path = weights.with_name(f"{weights.stem}_posix{weights.suffix}")
+    torch.save(clean_ckpt, str(posix_path))
+    print(f"[Sanitizer] Created Linux-compatible checkpoint: {posix_path}")
+    return posix_path
 
 
 def _resolve_existing(primary: Path, fallback: Path) -> Path:
@@ -56,6 +107,7 @@ def _run_yolo_train(
     device: str,
     multi_scale: bool = False,
 ) -> Path:
+    weights = _ensure_posix_checkpoint(weights)
     cmd = [
         sys.executable,
         str(YOLO_DIR / "train.py"),
@@ -77,12 +129,15 @@ def _run_yolo_train(
     if multi_scale:
         cmd.append("--multi-scale")
 
+    env = os.environ.copy()
+    env["WANDB_MODE"] = "disabled"
+
     print("\n" + "=" * 72)
     print(f"RUNNING: {name} (freeze={freeze}, imgsz={imgsz}, epochs={epochs})")
     print("CMD:", " ".join(cmd))
     print("=" * 72)
 
-    res = subprocess.run(cmd, cwd=str(YOLO_DIR))
+    res = subprocess.run(cmd, cwd=str(YOLO_DIR), env=env)
     if res.returncode != 0:
         raise RuntimeError(f"Training stage '{name}' failed with exit code {res.returncode}")
 
