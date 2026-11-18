@@ -155,6 +155,7 @@ def finetune_traffic_sign(
     batch: int = 8,
     stage1_epochs: int = 15,
     stage2_epochs: int = 15,
+    force_stage1: bool = False,
 ) -> Path:
     _ensure_yolov5_ready()
     hyp = _resolve_existing(
@@ -162,19 +163,26 @@ def finetune_traffic_sign(
         YOLO_DIR / "data" / "hyps" / "hyp.traffic_sign_finetune.yaml",
     )
 
-    # Stage 1: Freeze backbone so neck/heads adapt to IDD vehicle hard negatives cleanly
-    stage1_best = _run_yolo_train(
-        weights=base_weights,
-        data_yaml=data_yaml,
-        hyp_yaml=hyp,
-        imgsz=1280,
-        batch=batch,
-        epochs=stage1_epochs,
-        freeze=10,
-        project=out_project,
-        name="traffic_sign_tuned_stage1",
-        device=device,
-    )
+    stage1_name = "traffic_sign_tuned_stage1"
+    existing_stage1_best = out_project / stage1_name / "weights" / "best.pt"
+    if not force_stage1 and existing_stage1_best.exists():
+        print(f"\n[RESUME] Found completed Stage 1 checkpoint: {existing_stage1_best}")
+        print("Skipping Stage 1 and continuing to Stage 2 directly!\n")
+        stage1_best = existing_stage1_best
+    else:
+        # Stage 1: Freeze backbone so neck/heads adapt to IDD vehicle hard negatives cleanly
+        stage1_best = _run_yolo_train(
+            weights=base_weights,
+            data_yaml=data_yaml,
+            hyp_yaml=hyp,
+            imgsz=1280,
+            batch=batch,
+            epochs=stage1_epochs,
+            freeze=10,
+            project=out_project,
+            name=stage1_name,
+            device=device,
+        )
 
     # Stage 2: Gentle full-network refinement
     stage2_best = _run_yolo_train(
@@ -199,7 +207,9 @@ def finetune_road_damage(
     device: str,
     batch: int = 16,
     stage1_epochs: int = 15,
-    stage2_epochs: int = 20,
+    stage2_epochs: int = 10,
+    multi_scale: bool = True,
+    force_stage1: bool = False,
 ) -> Path:
     _ensure_yolov5_ready()
     hyp = _resolve_existing(
@@ -207,34 +217,42 @@ def finetune_road_damage(
         YOLO_DIR / "data" / "hyps" / "hyp.road_damage_finetune.yaml",
     )
 
-    # Stage 1: Frozen backbone @ 896px for hairline cracks + focal loss + IDD hard negatives
-    stage1_best = _run_yolo_train(
-        weights=base_weights,
-        data_yaml=data_yaml,
-        hyp_yaml=hyp,
-        imgsz=896,
-        batch=batch,
-        epochs=stage1_epochs,
-        freeze=10,
-        project=out_project,
-        name="road_damage_tuned_stage1",
-        device=device,
-        multi_scale=False,
-    )
+    stage1_name = "road_damage_tuned_stage1"
+    existing_stage1_best = out_project / stage1_name / "weights" / "best.pt"
+    if not force_stage1 and existing_stage1_best.exists():
+        print(f"\n[RESUME] Found completed Stage 1 checkpoint: {existing_stage1_best}")
+        print("Skipping Stage 1 and continuing to Stage 2 directly!\n")
+        stage1_best = existing_stage1_best
+    else:
+        # Stage 1: Frozen backbone @ 896px for hairline cracks + focal loss + IDD hard negatives
+        stage1_best = _run_yolo_train(
+            weights=base_weights,
+            data_yaml=data_yaml,
+            hyp_yaml=hyp,
+            imgsz=896,
+            batch=batch,
+            epochs=stage1_epochs,
+            freeze=10,
+            project=out_project,
+            name=stage1_name,
+            device=device,
+            multi_scale=False,
+        )
 
-    # Stage 2: Gentle unfreeze with multi-scale training for scale invariance
+    # Stage 2: Gentle unfreeze (backbone + heads)
+    stage2_batch = max(8, batch // 2) if multi_scale else batch
     stage2_best = _run_yolo_train(
         weights=stage1_best,
         data_yaml=data_yaml,
         hyp_yaml=hyp,
         imgsz=896,
-        batch=max(8, batch // 2),
+        batch=stage2_batch,
         epochs=stage2_epochs,
         freeze=0,
         project=out_project,
         name="road_damage_tuned_final",
         device=device,
-        multi_scale=True,
+        multi_scale=multi_scale,
     )
     return stage2_best
 
@@ -268,6 +286,10 @@ def parse_args():
     parser.add_argument("--device", type=str, default="0")
     parser.add_argument("--sign-batch", type=int, default=8)
     parser.add_argument("--rdd-batch", type=int, default=16)
+    parser.add_argument("--stage1-epochs", type=int, default=None, help="Override Stage 1 epochs")
+    parser.add_argument("--stage2-epochs", type=int, default=None, help="Override Stage 2 epochs")
+    parser.add_argument("--no-multi-scale", action="store_true", help="Disable multi-scale for Road Damage Stage 2 (runs ~2x faster)")
+    parser.add_argument("--force-stage1", action="store_true", help="Force rerunning Stage 1 even if its best.pt already exists")
     return parser.parse_args()
 
 
@@ -278,24 +300,35 @@ def main():
     if args.target in ("traffic_sign", "both"):
         if not args.sign_data:
             raise ValueError("--sign-data is required when tuning traffic_sign")
+        s1_epochs = args.stage1_epochs if args.stage1_epochs is not None else 15
+        s2_epochs = args.stage2_epochs if args.stage2_epochs is not None else 15
         ts_best = finetune_traffic_sign(
             base_weights=Path(args.sign_weights).resolve(),
             data_yaml=Path(args.sign_data).resolve(),
             out_project=out_project,
             device=args.device,
             batch=args.sign_batch,
+            stage1_epochs=s1_epochs,
+            stage2_epochs=s2_epochs,
+            force_stage1=args.force_stage1,
         )
         print(f"\n[DONE] Tuned Traffic Sign weights saved to: {ts_best}")
 
     if args.target in ("road_damage", "both"):
         if not args.rdd_data:
             raise ValueError("--rdd-data is required when tuning road_damage")
+        s1_epochs = args.stage1_epochs if args.stage1_epochs is not None else 15
+        s2_epochs = args.stage2_epochs if args.stage2_epochs is not None else 10
         rdd_best = finetune_road_damage(
             base_weights=Path(args.rdd_weights).resolve(),
             data_yaml=Path(args.rdd_data).resolve(),
             out_project=out_project,
             device=args.device,
             batch=args.rdd_batch,
+            stage1_epochs=s1_epochs,
+            stage2_epochs=s2_epochs,
+            multi_scale=not args.no_multi_scale,
+            force_stage1=args.force_stage1,
         )
         print(f"\n[DONE] Tuned Road Damage weights saved to: {rdd_best}")
 
