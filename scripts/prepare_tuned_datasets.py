@@ -391,7 +391,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Prepare tuned Traffic Sign & Road Damage datasets with cross-domain hard negatives"
     )
-    parser.add_argument("--idd-dir", type=str, required=True, help="Path to IDD dataset (source of hard negatives)")
+    parser.add_argument("--idd-dir", type=str, default="", help="Path to IDD dataset (source of hard negatives)")
     parser.add_argument("--traffic-sign-dir", type=str, default="", help="Path to Indian Traffic Signs dataset")
     parser.add_argument("--rdd-dir", type=str, default="", help="Path to RDD 2022 dataset")
     parser.add_argument("--extra-pothole-dir", type=str, default="", help="Optional extra pothole YOLO dataset")
@@ -405,7 +405,7 @@ def parse_args():
 def main():
     args = parse_args()
     out_root = Path(args.output_root)
-    idd_images = _find_all_images(Path(args.idd_dir))
+    idd_images = _find_all_images(Path(args.idd_dir)) if args.idd_dir else []
     print(f"Found {len(idd_images)} IDD images available for hard-negative sampling.")
 
     if args.traffic_sign_dir:
