@@ -29,16 +29,36 @@ import yaml
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 RDD_XML_CLASS_MAP: Dict[str, int] = {
-    "D00": 0,  # longitudinal crack
-    "D01": 0,
-    "D10": 1,  # transverse crack
-    "D11": 1,
-    "D20": 2,  # alligator crack
-    "D40": 4,  # pothole
-    "D43": 3,  # other corruption / crosswalk blur
-    "D44": 3,  # other corruption / white line blur
-    "D50": 3,  # utility cover / other corruption
-    "Repair": 3,
+    "d00": 0,  # longitudinal crack
+    "d01": 0,
+    "d10": 1,  # transverse crack
+    "d11": 1,
+    "d20": 2,  # alligator crack
+    "d40": 4,  # pothole
+    "d43": 3,  # other corruption / crosswalk blur
+    "d44": 3,  # other corruption / white line blur
+    "d50": 3,  # utility cover / other corruption
+    "repair": 3,
+}
+
+EXTRA_ROAD_XML_CLASS_MAP: Dict[str, int] = {
+    **RDD_XML_CLASS_MAP,
+    "pothole": 4,
+    "potholes": 4,
+    "pot hole": 4,
+    "pot_hole": 4,
+    "longitudinal": 0,
+    "longitudinal crack": 0,
+    "crack": 0,
+    "transverse": 1,
+    "transversal": 1,
+    "transverse crack": 1,
+    "alligator": 2,
+    "alligator crack": 2,
+    "block": 2,
+    "block crack": 2,
+    "patch": 3,
+    "other corruption": 3,
 }
 
 
@@ -107,7 +127,7 @@ def _convert_voc_xml_to_yolo(xml_path: Path, class_map: Dict[str, int]) -> List[
 
     lines: List[str] = []
     for obj in root.findall("object"):
-        name = (obj.findtext("name") or "").strip()
+        name = (obj.findtext("name") or "").strip().lower()
         if name not in class_map:
             continue
         cls_id = class_map[name]
@@ -314,15 +334,19 @@ def prepare_road_damage_dataset(
         dst_lbl.write_text("\n".join(lines), encoding="utf-8")
         counts[split] += 1
 
-    # Optionally merge an extra pothole YOLO dataset (all boxes remapped -> class 4 'pothole')
+    # Optionally merge an extra pothole/crack dataset (supports both Pascal VOC XML
+    # like `andrewmvd/pothole-detection` and YOLO `.txt` pothole datasets)
     extra_added = 0
     if extra_pothole_dir and extra_pothole_dir.exists():
         pothole_imgs = _find_all_images(extra_pothole_dir)
         for idx, img in enumerate(pothole_imgs):
             lbl_path, kind = _locate_label_for_image(img)
-            if lbl_path is None or kind != "txt":
+            if lbl_path is None:
                 continue
-            lines = _sanitize_yolo_lines(lbl_path, valid_nc=5, remap_all_to_class=4)
+            if kind == "xml":
+                lines = _convert_voc_xml_to_yolo(lbl_path, EXTRA_ROAD_XML_CLASS_MAP)
+            else:
+                lines = _sanitize_yolo_lines(lbl_path, valid_nc=5, remap_all_to_class=4)
             if not lines:
                 continue
             split = "val" if rng.random() < 0.12 else "train"
