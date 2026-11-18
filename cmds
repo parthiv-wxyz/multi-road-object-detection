@@ -8,10 +8,5 @@ python3 -m venv .venv
 source .venv/bin/activate
 deactivate
 
-
-                        continue final training
-
-python yolov5\train.py --resume runs\train\rdd4d_main\weights\last.pt
-
                         backend start:
 uvicorn app:app --reload
