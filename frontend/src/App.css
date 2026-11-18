@@ -927,3 +927,42 @@ td:first-child {
     padding-left: 14px;
   }
 }
+
+/* ============================================================
+   Model Source Badges
+   ============================================================ */
+.model-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  margin-right: 4px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.model-badge.badge-IDD {
+  background: rgba(67, 160, 255, 0.16);
+  color: #0b72dc;
+  border: 1px solid rgba(67, 160, 255, 0.32);
+}
+
+.model-badge.badge-RDD4D {
+  background: rgba(255, 170, 55, 0.16);
+  color: #c97100;
+  border: 1px solid rgba(255, 170, 55, 0.32);
+}
+
+.model-badge.badge-RDD-22,
+.model-badge.badge-RDD_22 {
+  background: rgba(235, 87, 87, 0.16);
+  color: #d32f2f;
+  border: 1px solid rgba(235, 87, 87, 0.32);
+}
+
+.model-badge.badge-Traffic-Sign,
+.model-badge.badge-Traffic_Sign {
+  background: rgba(82, 210, 150, 0.18);
+  color: #1a8753;
+  border: 1px solid rgba(82, 210, 150, 0.36);
+}

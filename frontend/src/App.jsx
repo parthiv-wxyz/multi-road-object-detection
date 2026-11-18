@@ -380,9 +380,9 @@ function App() {
           <a href="#detections">Log</a>
         </nav>
         <div className="topbar-meta">
-          <span className="model-name">IDD Final</span>
+          <span className="model-name">Ensemble: IDD • RDD4D • RDD22 • Sign</span>
           <span className="ready-status">
-            <i /> Model ready
+            <i /> Models ready
           </span>
         </div>
       </header>
@@ -640,6 +640,7 @@ function App() {
                   <thead>
                     <tr>
                       <th>Class</th>
+                      <th>Source Model</th>
                       <th>Count</th>
                       <th>Avg Confidence</th>
                     </tr>
@@ -647,14 +648,15 @@ function App() {
                   <tbody>
                     {Object.entries(
                       detections.reduce((acc, d) => {
-                        if (!acc[d.class]) acc[d.class] = { count: 0, totalConf: 0 };
+                        if (!acc[d.class]) acc[d.class] = { count: 0, totalConf: 0, models: new Set() };
                         acc[d.class].count += 1;
                         acc[d.class].totalConf += d.confidence;
+                        acc[d.class].models.add(d.model);
                         return acc;
                       }, {}),
                     )
                       .sort(([, a], [, b]) => b.count - a.count)
-                      .map(([cls, { count, totalConf }], index) => (
+                      .map(([cls, { count, totalConf, models }], index) => (
                         <motion.tr
                           key={cls}
                           initial={{ opacity: 0, y: 8 }}
@@ -666,6 +668,16 @@ function App() {
                               {String(index + 1).padStart(2, "0")}
                             </span>
                             {cls}
+                          </td>
+                          <td>
+                            {Array.from(models).map((m) => (
+                              <span
+                                key={m}
+                                className={`model-badge badge-${m.replace(/[\s_]+/g, "-")}`}
+                              >
+                                {m}
+                              </span>
+                            ))}
                           </td>
                           <td>{count}</td>
                           <td>

@@ -19,9 +19,9 @@ cutmix = CutMix(probability=1.0)
 
 img, labels = cutmix(img1, [], img2, [])
 
-cv2.imshow("CutMix", img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Non-blocking verification for test automation
+assert img is not None, "CutMix returned None image"
+assert img.shape == img1.shape, f"Shape mismatch: {img.shape} vs {img1.shape}"
 
 print("Image 1:", img1.shape)
 print("Image 2:", img2.shape)
