@@ -11,3 +11,5 @@ services:
         value: 3.11.0
       - key: MPLCONFIGDIR
         value: /tmp/matplotlib
+      - key: PYTHONUNBUFFERED
+        value: "1"

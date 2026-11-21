@@ -15,7 +15,7 @@ numpy>=1.23,<2.0
 scipy>=1.10
 pandas>=1.5
 
-# Machine Learning & Profiling
+# Machine Learning, YOLOv5 & Profiling
 PyYAML>=6.0
 tqdm>=4.65
 matplotlib>=3.7
@@ -23,3 +23,5 @@ scikit-learn>=1.3
 thop>=0.1.1
 psutil>=5.9
 seaborn>=0.12
+requests>=2.31.0
+ultralytics>=8.0.0

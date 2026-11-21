@@ -276,7 +276,7 @@ async def detect(file: UploadFile = File(...)):
     for model_name, path_str in MODEL_PATHS.items():
         weight_path = Path(path_str).resolve()
         if not weight_path.exists():
-            print(f"[Warning] Weight file not found: {weight_path}")
+            print(f"[Warning] Weight file not found: {weight_path}", flush=True)
             branch_outputs[model_name] = {"detections": []}
             continue
 
@@ -292,6 +292,7 @@ async def detect(file: UploadFile = File(...)):
         model = None
         results = None
         try:
+            print(f"[Model {model_name}] Loading weights from {weight_path.name}...", flush=True)
             model = torch.hub.load(
                 str(YOLO_DIR),
                 "custom",
@@ -307,10 +308,13 @@ async def detect(file: UploadFile = File(...)):
                 results = model(target_img, size=infer_size)
                 dets = extract_yolo_detections(model_name, results, model)
 
+            print(f"[Model {model_name}] Detected {len(dets)} raw objects in {round((time.perf_counter() - m_start) * 1000.0, 1)}ms", flush=True)
             branch_outputs[model_name] = {"detections": dets}
             per_model_times[model_name] = round((time.perf_counter() - m_start) * 1000.0, 2)
         except Exception as e:
-            print(f"[Error loading/inferring {model_name}] {e}")
+            import traceback
+            print(f"[Error loading/inferring {model_name}] {e}", flush=True)
+            traceback.print_exc()
             branch_outputs[model_name] = {"detections": []}
         finally:
             # Crucial: Immediately free model memory before loading next one
@@ -367,6 +371,7 @@ async def detect(file: UploadFile = File(...)):
     all_detections = idd_dets + damage_dets + final_signs
 
     elapsed_total = round((time.perf_counter() - overall_start) * 1000.0, 2)
+    print(f"[Done] Total objects after fusion and filtering: {len(all_detections)} in {elapsed_total}ms", flush=True)
 
     rendered_image = render_all_detections(image, all_detections)
     encoded_image = image_to_base64(rendered_image)
