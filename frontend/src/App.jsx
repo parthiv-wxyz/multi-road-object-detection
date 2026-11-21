@@ -283,7 +283,7 @@ function App() {
     formData.append("file", selectedFile);
     try {
       const { data } = await axios.post(
-        "http://127.0.0.1:8000/detect",
+        `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"}/detect`,
         formData,
       );
       setResultImage(`data:image/jpeg;base64,${data.image}`);

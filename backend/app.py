@@ -55,19 +55,34 @@ MODEL_CONFIG = {
     ),
     "RDD_22": os.getenv(
         "RDD2022_MODEL_PATH",
-        str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_final" / "weights" / "best.pt"),
+        str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_finalmod" / "weights" / "best.pt"),
     ),
+    "RDD_22": os.getenv(
+            "RDD2022_MODEL_PATH",
+            str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_final" / "weights" / "best.pt"),
+        ),
     "Traffic Sign": os.getenv(
         "TRAFFIC_SIGN_MODEL_PATH",
         str(
             YOLO_DIR
             / "runs"
             / "train"
-            / "traffic_sign_enhanced_1280_pretrained"
+            / "traffic_sign_enhanced_1280_pretrainedmod"
             / "weights"
             / "best.pt"
         ),
     ),
+    "Traffic Sign": os.getenv(
+            "TRAFFIC_SIGN_MODEL_PATH",
+            str(
+                YOLO_DIR
+                / "runs"
+                / "train"
+                / "traffic_sign_enhanced_1280_pretrained"
+                / "weights"
+                / "best.pt"
+            ),
+        ),
 }
 
 TRAFFIC_SIGN_CLS_PATH = Path(
