@@ -78,21 +78,29 @@ MODEL_PATHS = {
     ),
     "RDD_22": os.getenv(
         "RDD2022_MODEL_PATH",
-        str(WEIGHTS_DIR / "rdd2022.pt")
-        if (WEIGHTS_DIR / "rdd2022.pt").exists()
-        else str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_final" / "weights" / "best.pt"),
+        str(WEIGHTS_DIR / "rdd20221.pt")
+        if (WEIGHTS_DIR / "rdd20221.pt").exists()
+        else (
+            str(WEIGHTS_DIR / "rdd2022.pt")
+            if (WEIGHTS_DIR / "rdd2022.pt").exists()
+            else str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_finalmod" / "weights" / "best.pt")
+        ),
     ),
     "Traffic Sign": os.getenv(
         "TRAFFIC_SIGN_MODEL_PATH",
-        str(WEIGHTS_DIR / "traffic_sign.pt")
-        if (WEIGHTS_DIR / "traffic_sign.pt").exists()
-        else str(
-            YOLO_DIR
-            / "runs"
-            / "train"
-            / "traffic_sign_enhanced_1280_pretrained"
-            / "weights"
-            / "best.pt"
+        str(WEIGHTS_DIR / "traffic_sign1.pt")
+        if (WEIGHTS_DIR / "traffic_sign1.pt").exists()
+        else (
+            str(WEIGHTS_DIR / "traffic_sign.pt")
+            if (WEIGHTS_DIR / "traffic_sign.pt").exists()
+            else str(
+                YOLO_DIR
+                / "runs"
+                / "train"
+                / "traffic_sign_enhanced_1280_pretrainedmod"
+                / "weights"
+                / "best.pt"
+            )
         ),
     ),
 }
