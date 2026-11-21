@@ -2,3 +2,6 @@ datasets
 .venv
 __pycache__
 .pytest_cache
+yolov5/runs
+yolov5/.git
+yolov5/.git_backup

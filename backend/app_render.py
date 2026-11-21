@@ -289,6 +289,8 @@ async def detect(file: UploadFile = File(...)):
         target_img = road_image if prof.use_road_clahe else norm_image
 
         m_start = time.perf_counter()
+        model = None
+        results = None
         try:
             model = torch.hub.load(
                 str(YOLO_DIR),
@@ -307,10 +309,15 @@ async def detect(file: UploadFile = File(...)):
 
             branch_outputs[model_name] = {"detections": dets}
             per_model_times[model_name] = round((time.perf_counter() - m_start) * 1000.0, 2)
+        except Exception as e:
+            print(f"[Error loading/inferring {model_name}] {e}")
+            branch_outputs[model_name] = {"detections": []}
         finally:
             # Crucial: Immediately free model memory before loading next one
-            del model
-            del results
+            if model is not None:
+                del model
+            if results is not None:
+                del results
             gc.collect()
 
     # Post-processing: Stage 3 (IDD Vehicle conflict resolution)
