@@ -3,7 +3,7 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  Aperture,
+  // Aperture,
   ArrowUp,
   ClipboardPaste,
   FileImage,
@@ -369,9 +369,10 @@ function App() {
       </AnimatePresence>
       <header className="topbar">
         <a className="brand" href="#workspace" aria-label="RoadSight dashboard">
-          <span className="brand-mark">
+          {/* <span className="brand-mark">
             <Aperture size={17} />
-          </span>
+          </span> */}
+          <img src="favicon.svg" alt="" sizes="32x32" srcset="" className="brand-mark"/>
           <span>RoadSight</span>
         </a>
         <nav className="topbar-links" aria-label="Dashboard sections">
@@ -380,7 +381,7 @@ function App() {
           <a href="#detections">Log</a>
         </nav>
         <div className="topbar-meta">
-          <span className="model-name">Ensemble: IDD • RDD4D • RDD22 • Sign</span>
+          <span className="model-name">Ensemble: IDD • RDD22 • TrafficSign</span>
           <span className="ready-status">
             <i /> Models ready
           </span>
@@ -399,7 +400,7 @@ function App() {
             <p className="eyebrow">Detection workspace</p>
             <h1 id="page-title">Road scene intelligence, tuned for review.</h1>
             <p className="heading-copy">
-              Upload a frame, run the local YOLO model, and inspect every
+              Upload a frame, and inspect every
               detection with responsive zoom controls and a clean audit trail.
             </p>
             <div className="hero-actions">

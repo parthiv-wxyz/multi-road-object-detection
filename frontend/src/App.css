@@ -170,10 +170,10 @@
   height: 32px;
   display: grid;
   place-items: center;
-  color: #ffffff;
+  /* color: #ffffff;
   background: linear-gradient(135deg, #7967e8, #40b99f);
   border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(103, 88, 206, 0.25);
+  box-shadow: 0 10px 24px rgba(103, 88, 206, 0.25); */
 }
 
 .topbar-links {
