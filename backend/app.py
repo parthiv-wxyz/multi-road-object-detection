@@ -57,7 +57,8 @@ MODEL_CONFIG = {
         "RDD2022_MODEL_PATH",
         str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_finalmod" / "weights" / "best.pt"),
     ),
-    "RDD_22": os.getenv(
+    #new model
+    "RDD_22_mod": os.getenv(
             "RDD2022_MODEL_PATH",
             str(YOLO_DIR / "runs" / "train" / "enhanced_rdd2022_final" / "weights" / "best.pt"),
         ),
@@ -72,7 +73,8 @@ MODEL_CONFIG = {
             / "best.pt"
         ),
     ),
-    "Traffic Sign": os.getenv(
+    #new model
+    "Traffic Sign_mod": os.getenv(
             "TRAFFIC_SIGN_MODEL_PATH",
             str(
                 YOLO_DIR
@@ -84,13 +86,6 @@ MODEL_CONFIG = {
             ),
         ),
 }
-
-TRAFFIC_SIGN_CLS_PATH = Path(
-    os.getenv(
-        "TRAFFIC_SIGN_CLS_PATH",
-        str(YOLO_DIR / "runs" / "train-cls" / "traffic_sign_cls_50" / "weights" / "best.pt"),
-    )
-)
 
 # Distinct overlay colors per model domain
 MODEL_COLORS = {
@@ -143,7 +138,6 @@ MODELS = {
 PIPELINE = MultiRoadDetectionPipeline(
     models=MODELS,
     yolo_dir=YOLO_DIR,
-    classifier_weights=TRAFFIC_SIGN_CLS_PATH,
     profiles=DEFAULT_MODEL_PROFILES,
 )
 
@@ -237,7 +231,6 @@ def home():
             }
             for name, path in MODEL_CONFIG.items()
         },
-        "stage2_traffic_sign_classifier": PIPELINE.sign_refiner.is_ready,
     }
 
 
@@ -247,7 +240,6 @@ def health():
         "status": "ok",
         "models_loaded": list(MODELS.keys()),
         "model_count": len(MODELS),
-        "stage2_classifier_loaded": PIPELINE.sign_refiner.is_ready,
     }
 
 
@@ -272,7 +264,6 @@ def get_models():
         }
     return {
         "models": model_info,
-        "stage2_classifier_classes": len(PIPELINE.sign_refiner.names),
     }
 
 

@@ -27,7 +27,6 @@ from PIL import Image
 
 from .fusion import VehicleConflictResolver, WeightedBoxesFuser
 from .preprocessing import AdaptiveIlluminationNormalizer, RoadSurfaceEnhancer
-from .sign_refiner import TrafficSignRefiner
 from .spatial_filter import CrossDomainSpatialFilter
 from .tiling import RoadROITiler
 
@@ -115,7 +114,6 @@ class MultiRoadDetectionPipeline:
         self,
         models: Dict[str, object],
         yolo_dir: Path,
-        classifier_weights: Optional[Path] = None,
         profiles: Optional[Dict[str, ModelInferenceProfile]] = None,
     ):
         self.models = models
@@ -137,19 +135,6 @@ class MultiRoadDetectionPipeline:
         self.vehicle_resolver = VehicleConflictResolver()
         self.damage_fuser = WeightedBoxesFuser()
         self.spatial_filter = CrossDomainSpatialFilter()
-
-        cls_path = classifier_weights or (
-            self.yolo_dir
-            / "runs"
-            / "train-cls"
-            / "traffic_sign_cls_50"
-            / "weights"
-            / "best.pt"
-        )
-        self.sign_refiner = TrafficSignRefiner(
-            weights_path=cls_path,
-            yolo_dir=self.yolo_dir,
-        )
 
     def _run_detector_branch(
         self,
@@ -243,10 +228,7 @@ class MultiRoadDetectionPipeline:
         )
 
         # Stage 6: Stage-2 85-class Traffic Sign verification & fine-grained labeling
-        sign_dets, rejected_signs_cls = self.sign_refiner.refine(
-            norm_image,
-            spatial_signs,
-        )
+        sign_dets = spatial_signs
 
         # Re-group clean detections by source model for structured API response
         final_by_model: Dict[str, List[Dict]] = {name: [] for name in self.models}
@@ -296,12 +278,10 @@ class MultiRoadDetectionPipeline:
                 "idd_vehicle_conflict_nms": True,
                 "road_damage_wbf_fusion": True,
                 "cross_domain_spatial_filter": True,
-                "traffic_sign_stage2_classifier": self.sign_refiner.is_ready,
             },
             "filtered_summary": {
                 "idd_duplicates_removed": max(0, len(raw_idd) - len(idd_dets)),
                 "signs_suppressed_spatial": suppressed_signs_spatial,
-                "signs_rejected_classifier": rejected_signs_cls,
                 "damage_suppressed_spatial": suppressed_damage,
             },
         }

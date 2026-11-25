@@ -18,24 +18,28 @@ This project implements an **enhanced version of YOLOv5s** fine-tuned across thr
 | **Wise-IoU v3** | Dynamic non-monotonic focusing bounding-box regression loss |
 | **Optimized Anchors** | Percentile-based anchor clustering per dataset |
 
-Three separate trained models are served in parallel:
+Six independently trained YOLOv5s model checkpoints are integrated into the project:
 
-| Model | Dataset | Task | Classes |
-|-------|---------|------|---------|
-| **IDD Model** | Indian Driving Dataset (IDD) | Road-scene object detection | 7 |
-| **RDD2022 Model** | RDD-2022 (Kaggle) | Road damage & crack detection | 4–5 |
-| **Traffic Sign Model** | Indian Traffic Signs (Kaggle) | Traffic sign category detection | 5 |
+| Model | Dataset | Training Run | Task |
+|-------|---------|--------------|------|
+| **IDD** | Indian Driving Dataset (IDD) | `idd_final` | Road-scene object detection |
+| **RDD4D** | RDD4D | `rdd4d_enhanced_final` | Road damage detection |
+| **RDD2022 – Original** | RDD-2022 (Kaggle) | `enhanced_rdd2022_finalmod` | Road damage & crack detection |
+| **RDD2022_mod – Updated** | RDD-2022 (Kaggle) | `enhanced_rdd2022_final` | Road damage & crack detection |
+| **Traffic Sign – Original** | Indian Traffic Signs (Kaggle) | `traffic_sign_enhanced_1280_pretrainedmod` | Traffic sign detection |
+| **Traffic Sign_mod – Updated** | Indian Traffic Signs (Kaggle) | `traffic_sign_enhanced_1280_pretrained` | Traffic sign detection |
+
+Each model has independently trained `best.pt` weights. The backend configuration supports selecting the appropriate checkpoint through environment variables.
 
 ---
 
 ## Datasets
 
-### 1. Indian Driving Dataset (IDD)
-Used for training the road-scene object detector (`idd_final`).
+### 1. Indian Driving Dataset Detections (YOLOv11 format)
+Used for training the road-scene object detector
 
-- **Source**: IDD — structured Indian road-scene dataset with 7 object categories
-- **Classes**: `person`, `car`, `autorickshaw`, `truck`, `bus`, `motorcycle`, `bicycle`
-- **Challenge**: 77.5% of ground-truth objects are small (<32×32 px); chaotic unstructured roads, high occlusion density
+- **Source**: [Kaggle — Indian Driving Dataset Detections (YOLOv11) by redzapdos123](https://www.kaggle.com/datasets/redzapdos123/indian-driving-dataset-detections-yolov11)
+- Used for: anchor statistics, bounding-box distribution analysis, pre-labelled sample verification
 
 ---
 
@@ -54,14 +58,6 @@ Used for training the traffic sign category detector (`traffic_sign_enhanced_128
 - **Source**: [Kaggle — Traffic Signs Dataset (Indian Roads) by kaustubhrastogi17](https://www.kaggle.com/datasets/kaustubhrastogi17/traffic-signs-dataset-indian-roads)
 - **Classes**: `Regulatory`, `Mandatory`, `Informatory`, `General`, `Warning`
 - **Challenge**: High intra-class visual diversity; illumination variance; Informatory class is severely underrepresented (~55 instances vs ~160 for Warning)
-
----
-
-### 4. Indian Driving Dataset Detections (YOLOv11 format)
-Supplementary dataset used during dataset preparation and anchor analysis.
-
-- **Source**: [Kaggle — Indian Driving Dataset Detections (YOLOv11) by redzapdos123](https://www.kaggle.com/datasets/redzapdos123/indian-driving-dataset-detections-yolov11)
-- Used for: anchor statistics, bounding-box distribution analysis, pre-labelled sample verification
 
 ---
 
@@ -84,21 +80,6 @@ YOLO/
 │       ├── App.jsx                 # Main component (canvas viewer, model toggles)
 │       ├── App.css                 # Styles
 │       └── assets/                 # Static assets
-│
-├── model_changes/                  # Custom model YAML configs & modules
-│   ├── models/
-│   │   ├── attention/              # ECA, ConvECA attention modules
-│   │   ├── fusion/                 # AFP fusion module
-│   │   ├── lightweight/            # LWConv, LWC3 blocks
-│   │   ├── losses/                 # Wise-IoU v3 loss
-│   │   ├── common.py               # Shared model utilities
-│   │   ├── yolov5s_p2.yaml         # YOLOv5s + P2 head config
-│   │   ├── yolov5s_p2_lwc3.yaml    # + LWC3 blocks
-│   │   ├── yolov5s_p2_lwc3_eca.yaml# + ECA attention
-│   │   ├── yolov5s_p2_lwc3_eca_afp.yaml # Full enhanced config
-│   │   ├── enhanced_rdd4d.yaml     # Road damage model config
-│   │   └── traffic_sign_enhanced.yaml   # Traffic sign model config
-│   └── data/                       # Dataset YAML configs
 │
 ├── project_utils/                  # Custom Python utilities
 │   ├── augmentations/
@@ -153,21 +134,11 @@ YOLO/
 │   ├── metrics/
 │   └── all_dataset_image_report.csv
 │
-├── experiments/                    # Ablation study outputs
-│   ├── ablation/
-│   ├── afp/
-│   ├── attention4d/
-│   ├── baseline/
-│   ├── combined/
-│   └── wise_iou/
-│
-├── notebooks/                      # Jupyter notebooks
 ├── datasets/                       # Local dataset copies
 │   ├── idd/
 │   ├── road_damage/
 │   └── traffic_sign/
 │
-├── docs/                           # Architecture and design docs
 ├── tests/                          # Unit tests
 ├── yolov5/                         # YOLOv5 framework (modified)
 ├── requirements.txt                # Project dependencies
@@ -242,7 +213,7 @@ YOLO/
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/<username>/multi-road-object-detection.git
+git clone https://github.com/parthiv-wxyz/multi-road-object-detection.git
 cd multi-road-object-detection
 ```
 
@@ -321,6 +292,9 @@ datasets/
 │   │   ├── images/
 │   │   └── labels/
 │   └── val/
+│   │   ├── images/
+│   │   └── labels/
+│   └── test/
 │       ├── images/
 │       └── labels/
 │
@@ -329,6 +303,9 @@ datasets/
 │   │   ├── images/
 │   │   └── labels/
 │   └── val/
+│   │   ├── images/
+│   │   └── labels/
+│   └── test/
 │       ├── images/
 │       └── labels/
 │
@@ -342,32 +319,6 @@ datasets/
     └── test/
         ├── images/
         └── labels/
-```
-
-Convert RDD JSON annotations to YOLO format:
-
-```bash
-python scripts/convert_rdd4d_json_to_yolo.py
-```
-
-Split traffic sign dataset:
-
-```bash
-python scripts/split_traffic_sign_dataset.py
-```
-
-Verify dataset integrity:
-
-```bash
-python scripts/verify_dataset.py --dataset datasets/idd
-python scripts/verify_dataset.py --dataset datasets/road_damage
-python scripts/verify_traffic_sign_dataset.py
-```
-
-Visualize class distribution:
-
-```bash
-python scripts/dataset_statistics.py
 ```
 
 ---
@@ -482,25 +433,6 @@ python scripts/detect_model.py \
 python yolov5/detect.py \
     --weights weights/idd.pt \
     --source path/to/images/ \
-    --conf 0.35
-```
-
-### Video File
-
-```bash
-python scripts/detect_video.py \
-    --weights weights/idd.pt \
-    --source path/to/video.mp4 \
-    --conf 0.35 \
-    --out output/
-```
-
-### Live Webcam
-
-```bash
-python scripts/webcam.py \
-    --weights weights/idd.pt \
-    --source 0 \
     --conf 0.35
 ```
 
